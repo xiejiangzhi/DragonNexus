@@ -9,10 +9,10 @@ Cell TargetCell = None
 String Status = "WaitMsg"
 
 int GetMsgHandle
+int MaxCellMsg = 32
 
+string[] EmptyStrList
 
-; 保存 loaded cell
-; 通过 unload 事件来知道 cell unload 了
 
 function StartLoadCell(Cell tcell)
   if !tcell
@@ -26,60 +26,58 @@ function StartLoadCell(Cell tcell)
   endif
   TargetCell = tcell
 
-  string area_id = "SSE:" tcell.GetFormID()
-  MiscUtil.PrintConsole(
-    "[DragNexus] Start load thread: " + tcell + ", area_id: " + area_id + ", thread: " + ThreadIdx
-  )
-
   Status = "WaitMsg"
-  GetMsgHandle = Util.PullCellMsgs(self, tcell)
+  GetMsgHandle = PullCellMsgs(tcell)
 endfunction
 
 function StopThread()
   TargetCell = None
-  HTTPUtils.Destroy(GetMsgHandle)
+  if GetMsgHandle
+    HTTPUtils.Destroy(GetMsgHandle)
+  endif
   Util.PushIdleThread(self)
 endfunction
 
-Event OnUpdate()
-  if !TargetCell
-    MiscUtil.PrintConsole("[DragNexus] Stop inactive thread")
-    return
-  endif
-
-  if !Util.IsCellLoaded(TargetCell)
-    MiscUtil.PrintConsole("[DragNexus] Stop thread, cell is unloaded: " + TargetCell)
-    StopThread()
-    return
-  endif
-
-  Actor player = Game.GetPlayer()
-  Util.PlaceMsg("hello", "plain", "", player.x, player.y, player.z, player.GetAngleY())
-
-
-  ; if failed to place or msgs == 0
-  ; Util.MarkCellUnloaded(tcell)
-
-  StopThread()
-  ; RegisterForSingleUpdate(UpdateInterval)
-EndEvent
+; return http_handle
+int function PullCellMsgs(Cell tcell)
+  string url = Util.MsgHost + "/msg/list?area_id=SSE_" + tcell.GetFormID() as string
+  ; Util.Log("list URL: " + url)
+  return HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStrList, EmptyStrList, EmptyStrList, EmptyStrList)
+endfunction
 
 Event OnRequestSuccess(Int aiHandle, String asResponse)
-  MiscUtil.PrintConsole("[DragNexus] Success pull msgs")
-
   if HTTPUtils.ValidateJSON(aiHandle)
-    Status = "Success"
-    ; if HTTPUtils.GetJSONInt(aiHandle, "count") > 0
-    RegisterForSingleUpdate(0.1)
+    int total = HTTPUtils.GetJSONArrayLength(aiHandle, "/msgs")
+    if total > MaxCellMsg
+      total = MaxCellMsg
+    endif
+    int i = 0
+    while i < total
+      int id = HTTPUtils.GetJSONInt(aiHandle, "/msgs/" + i + "/id")
+      if !Util.IsBlockedMsg(id)
+        string sender = HTTPUtils.GetJSONString(aiHandle, "/msgs/" + i + "/player")
+        string msg = HTTPUtils.GetJSONString(aiHandle, "/msgs/" + i + "/msg")
+        string msg_type = HTTPUtils.GetJSONString(aiHandle, "/msgs/" + i + "/msg_type")
+        string msg_val = HTTPUtils.GetJSONString(aiHandle, "/msgs/" + i + "/msg_val")
+        float x = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/x")
+        float y = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/y")
+        float z = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/z")
+        float angle = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/angle")
+        Util.PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle)
+        Utility.Wait(0.05)
+      endif
+      i += 1
+    endwhile
+    StopThread()
   else
     Status = "Failed"
-    MiscUtil.PrintConsole("[DragNexus] Invalid msgs data")
+    Util.Log("Invalid cell msgs data")
     StopThread()
   endif
 EndEvent
 
 Event OnRequestFail(Int aiHandle, Int aiStatusCode)
+  Util.Log("Failed to pull cell msgs:" + aiStatusCode)
   Status = "Failed"
-  MiscUtil.PrintConsole("[DragNexus] Failed to pull msgs")
   StopThread()
 EndEvent

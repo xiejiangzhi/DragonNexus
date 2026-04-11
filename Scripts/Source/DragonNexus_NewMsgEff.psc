@@ -13,27 +13,31 @@ string msg_type = "plain"
 string msg_val = ""
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
-  MiscUtil.PrintConsole("[DragNexus] New Msg")
-
   ShowMsgMenu()
-
-  ; Util.AddMsg("Hello world", "Hello", "")
 endEvent
 
 function ShowMsgMenu()
   int ret = NewMsgMenu.Show()
   if ret == 0
     ; input
-    int text_ret = UIExtensions.OpenMenu("UITextEntryMenu")
-    msg = UIExtensions.GetMenuResultString("UITextEntryMenu")
-    MiscUtil.PrintConsole("[DragNexus] Input Msg: " + msg)
+    UIExtensions.SetMenuPropertyString("UITextEntryMenu", "text", msg)
+    UIExtensions.OpenMenu("UITextEntryMenu")
+    string str = UIExtensions.GetMenuResultString("UITextEntryMenu")
+    if str != ""
+      msg = msg
+    endif
     ShowMsgMenu()
   elseif ret == 1
     ShowMsgTypeMenu()
   elseif ret == 2
     ; send
+    if msg == ""
+      return
+    endif
     Actor player = Game.GetPlayer()
-    Util.PlaceMsg(msg, msg_type, msg_val, player.x, player.y, player.z, player.GetAngleY())
+    if ApplyMsgCost() || true
+      Util.SendMsg(msg, msg_type, msg_val)
+    endif
   elseif ret == 3
     ; cancel
   endif
@@ -43,6 +47,7 @@ function ShowMsgTypeMenu()
   int ret = MsgTypeMenu.Show()
   if ret == 0
     msg_type = "plain"
+    ShowMsgMenu()
   elseif ret == 1
     msg_type = "monster"
     ShowMsgTypeMonsterMenu()
@@ -58,19 +63,47 @@ function ShowMsgTypeMenu()
 endfunction
 
 function ShowMsgTypeMonsterMenu()
-  int ret = MsgTypeMonsterMenu.Show()
-  msg_type = ret as string
+  msg_val = MsgTypeMonsterMenu.Show() as string
   ShowMsgMenu()
 endfunction
 
 function ShowMsgTypeItemMenu()
-  int ret = MsgTypeItemMenu.Show()
-  msg_type = ret as string
+  msg_val = MsgTypeItemMenu.Show() as string
   ShowMsgMenu()
 endfunction
 
 function ShowMsgTypeMiscMenu()
-  int ret = MsgTypeMiscMenu.Show()
-  msg_type = ret as string
+  msg_val = MsgTypeMiscMenu.Show() as string
   ShowMsgMenu()
+endfunction
+
+bool function ApplyMsgCost()
+  Actor player = Game.GetPlayer()
+
+  if msg_type == "monster"
+    Form gem = Game.GetForm(0x2E4F3)
+    if player.GetItemCount(gem) >= 1
+      player.RemoveItem(gem, 1)
+      return true
+    else
+      Debug.Notification("Not enough " + gem.GetName())
+    endif
+  elseif msg_type == "item"
+    Form coin = Game.GetForm(0xf)
+    if player.GetItemCount(coin) >= 500
+      player.RemoveItem(coin, 500)
+      return true
+    else
+      Debug.Notification("Not enough " + coin.GetName())
+    endif
+  elseif msg_type == "misc"
+    Form coin = Game.GetForm(0xf)
+    if player.GetItemCount(coin) >= 500
+      player.RemoveItem(coin, 500)
+      return true
+    else
+      Debug.Notification("Not enough " + coin.GetName())
+    endif
+  endif
+  return false
 endfunction

@@ -9,37 +9,51 @@ Event OnLoad()
   if !CurrentCell
     CurrentCell = GetParentCell()
   endif
-  MiscUtil.PrintConsole("[DragNexus] mark cell loaded " + CurrentCell)
-  Util.MarkCellLoaded(CurrentCell)
+  if CurrentCell
+    Util.MarkCellLoaded(CurrentCell)
+  endif
 EndEvent
 
 Event OnCellLoad()
   if !CurrentCell
     CurrentCell = GetParentCell()
   endif
-  MiscUtil.PrintConsole("[DragNexus] mark cell loaded2 " + CurrentCell)
-  Util.MarkCellLoaded(CurrentCell)
+  if CurrentCell
+    Util.MarkCellLoaded(CurrentCell)
+  endif
+EndEvent
+
+Event OnCellAttach()
+  if !CurrentCell
+    CurrentCell = GetParentCell()
+  endif
+  if CurrentCell
+    Util.MarkCellLoaded(CurrentCell)
+  endif
 EndEvent
 
 Event OnUnload()
-  MiscUtil.PrintConsole("[DragNexus] mark cell unloaded " + CurrentCell)
-  Util.MarkCellUnloaded(CurrentCell)
+  if CurrentCell
+    Util.MarkCellUnloaded(CurrentCell)
+  endif
 
   self.Disable()
   self.Delete()
 EndEvent
 
 Event OnCellUnload()
-  MiscUtil.PrintConsole("[DragNexus] mark cell unloaded2 " + CurrentCell)
-  Util.MarkCellUnloaded(CurrentCell)
+  if CurrentCell
+    Util.MarkCellUnloaded(CurrentCell)
+  endif
 
   self.Disable()
   self.Delete()
 EndEvent
 
 Event OnCellDetach()
-  MiscUtil.PrintConsole("[DragNexus] mark cell unloaded3 " + CurrentCell)
-  Util.MarkCellUnloaded(CurrentCell)
+  if CurrentCell
+    Util.MarkCellUnloaded(CurrentCell)
+  endif
 
   self.Disable()
   self.Delete()
