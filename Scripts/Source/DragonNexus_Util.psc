@@ -60,6 +60,7 @@ EndEvent
 
 function PlayerEnterGame()
   LastCell = None
+  LastSendMsgTime = -1000.
 
   MsgHost = JsonUtil.GetPathStringValue(ConfFile, "Host", "http://127.0.0.1:3000")
   Log("Host: " + MsgHost)
@@ -82,6 +83,8 @@ function PlayerEnterGame()
     StorageUtil.ClearObjIntValuePrefix(self as Form, "blocked_msg_")
     LastClearBlockedMsgAt = time
   endif
+
+  StorageUtil.ClearObjIntValuePrefix(self as Form, "msg_pri_id_")
 endfunction
 
 function LoadCellMsgs(Cell tcell)
@@ -145,7 +148,7 @@ function PushIdleThread(DragonNexus_LoadThread thread)
   Threads[thread.ThreadIdx] = thread
 endfunction
 
-ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_type, string msg_val, float x, float y, float z, float angle)
+ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_type, string msg_val, float x, float y, float z, float angle, int like_level)
   ObjectReference obj
   if sender == PlayerName
     obj = Player.PlaceAtMe(MyMsgActivator, 1)
@@ -156,7 +159,7 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
     DragonNexus_Msg msg_obj = obj as DragonNexus_Msg
     msg_obj.SetPosition(x, y, z)
     msg_obj.SetAngle(0, angle, 0)
-    msg_obj.SetMsgData(id, sender, msg, msg_type, msg_val)
+    msg_obj.SetMsgData(id, sender, msg, msg_type, msg_val, like_level)
     StorageUtil.SetIntValue(self as Form, "msg_" + id, 1)
   endif
 
@@ -172,7 +175,7 @@ bool function CanSendMsg()
   float time = Utility.GetCurrentRealTime()
   if time < (LastSendMsgTime + SendMsgCooldown)
     float v = (LastSendMsgTime + SendMsgCooldown) - time
-    Debug.Notification("DragonNexus cooldown " + v as int + "s")
+    Debug.Notification("DragonNexus cooldown " + (v as int) + "s")
     return false
   endif
   return true
@@ -229,6 +232,20 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 5000, body, MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
+bool function CanDelMsg(int msg_id)
+  int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
+  return pri_id >= 0
+endfunction
+
+function DelMsg(int msg_id)
+  int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
+
+  if pri_id >= 0
+    string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&pri_id=" + pri_id
+    HTTPUtils.RequestJSON_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
+  endif
+endfunction
+
 bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
   if msg_type == "monster"
     Form gem = Game.GetForm(0x2E4F3)
@@ -257,6 +274,23 @@ bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
   else
     return true
   endif
+
+  if duration > 86400
+    Form gem = Game.GetForm(0x2E4FF)
+    int item_n = 1
+    if duration >= (86400 * 3)
+      item_n = 2
+    elseif duration >= (86400 * 2)
+      item_n = 1
+    endif
+
+    if Player.GetItemCount(gem) >= item_n
+      Player.RemoveItem(gem, item_n)
+      return true
+    else
+      Debug.Notification("Not enough " + gem.GetName())
+    endif
+  endif
   return false
 endfunction
 
@@ -277,8 +311,11 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     float y = HTTPUtils.GetJSONFloat(aiHandle, "/y")
     float z = HTTPUtils.GetJSONFloat(aiHandle, "/z")
     float angle = HTTPUtils.GetJSONFloat(aiHandle, "/angle")
+    int like_level = HTTPUtils.GetJSONInt(aiHandle, "/like_level")
+    int pri_id = HTTPUtils.GetJSONInt(aiHandle, "/pri_id")
 
-    PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle)
+    StorageUtil.SetIntValue(self as Form, "msg_pri_id_" + id, pri_id)
+    PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level)
   endif
 EndEvent
 

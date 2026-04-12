@@ -3,6 +3,7 @@ Scriptname DragonNexus_Msg extends ObjectReference
 
 DragonNexus_Util Property Util auto
 Message Property MsgMenu auto
+Message Property MyMsgMenu auto
 FormList Property Monsters auto
 FormList Property Items auto
 
@@ -14,7 +15,7 @@ string msg_val
 bool activated = false ; cannot activate again
 bool liked = false
 
-function SetMsgData(int _id, string _sender, string _msg, string _msg_type, string _msg_val)
+function SetMsgData(int _id, string _sender, string _msg, string _msg_type, string _msg_val, int _like_level = 0)
   msg_id = _id
   msg = _msg
   msg_type = _msg_type
@@ -22,7 +23,7 @@ function SetMsgData(int _id, string _sender, string _msg, string _msg_type, stri
   sender = _sender
   activated = Util.IsActivatedMsg(msg_id)
 
-  self.SetDisplayName("From: " + sender, true)
+  self.SetDisplayName("From: " + sender + "(" + _like_level + ")", true)
 endfunction
 
 Event OnActivate(ObjectReference akActionRef)
@@ -38,23 +39,33 @@ Event OnActivate(ObjectReference akActionRef)
   endif
 
   if player.IsSneaking()
-    int ret = MsgMenu.Show()
-    if ret == 0
-      if !activated
-        activated = true
-        ApplyMsgAction()
-        Util.ActivateMsg(msg_id)
+    if MyMsgMenu && Util.CanDelMsg(msg_id)
+      int ret = MyMsgMenu.Show()
+      if ret == 0
+        ; delete
+        Util.DelMsg(msg_id)
+        self.Disable()
+        self.Delete()
       endif
-    elseif ret == 1
-      Util.LikeMsg(msg_id)
-      liked = true
-    elseif ret == 2
-      Util.DislikeMsg(msg_id)
-      self.Disable()
-      self.Delete()
-      StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+    else
+      int ret = MsgMenu.Show()
+      if ret == 0
+        if !activated
+          activated = true
+          ApplyMsgAction()
+          Util.ActivateMsg(msg_id)
+        endif
+      elseif ret == 1
+        Util.LikeMsg(msg_id)
+        liked = true
+      elseif ret == 2
+        Util.DislikeMsg(msg_id)
+        self.Disable()
+        self.Delete()
+        StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+      endif
     endif
-  else
+  elseif !activated
     activated = true
     ApplyMsgAction()
     Util.ActivateMsg(msg_id)

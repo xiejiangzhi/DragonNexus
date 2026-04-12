@@ -62,8 +62,9 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
         float y = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/y")
         float z = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/z")
         float angle = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/angle")
-        Util.PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle)
-        Utility.Wait(0.05)
+        int like_level = HTTPUtils.GetJSONInt(aiHandle, "/msgs/" + i + "/like_level")
+        Util.PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level)
+        Utility.Wait(0.1)
       endif
       i += 1
     endwhile
