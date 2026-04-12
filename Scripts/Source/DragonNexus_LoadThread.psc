@@ -52,9 +52,9 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
       total = MaxCellMsg
     endif
     int i = 0
-    while i < total
+    while i < total && TargetCell.IsAttached()
       int id = HTTPUtils.GetJSONInt(aiHandle, "/msgs/" + i + "/id")
-      if !Util.IsBlockedMsg(id)
+      if Util.CanPlaceMsg(id)
         string sender = HTTPUtils.GetJSONString(aiHandle, "/msgs/" + i + "/player")
         string msg = HTTPUtils.GetJSONString(aiHandle, "/msgs/" + i + "/msg")
         string msg_type = HTTPUtils.GetJSONString(aiHandle, "/msgs/" + i + "/msg_type")

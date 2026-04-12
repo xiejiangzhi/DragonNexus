@@ -6,7 +6,7 @@ Message Property MsgMenu auto
 FormList Property Monsters auto
 FormList Property Items auto
 
-int msg_id
+int msg_id = -1
 string sender
 string msg
 string msg_type
@@ -21,6 +21,8 @@ function SetMsgData(int _id, string _sender, string _msg, string _msg_type, stri
   msg_val = _msg_val
   sender = _sender
   activated = Util.IsActivatedMsg(msg_id)
+
+  self.SetDisplayName("From: " + sender, true)
 endfunction
 
 Event OnActivate(ObjectReference akActionRef)
@@ -34,7 +36,6 @@ Event OnActivate(ObjectReference akActionRef)
   if liked && activated
     return
   endif
-
 
   if activated || player.IsSneaking()
     int ret = MsgMenu.Show()
@@ -53,6 +54,7 @@ Event OnActivate(ObjectReference akActionRef)
       Util.DislikeMsg(msg_id)
       self.Disable()
       self.Delete()
+      StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
     endif
   else
     activated = true
@@ -61,12 +63,26 @@ Event OnActivate(ObjectReference akActionRef)
   endif
 endEvent
 
+Event OnUnload()
+  if msg_id > 0
+    StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+    self.Disable()
+    self.Delete()
+  endif
+EndEvent
+
 Event OnCellUnload()
+  if msg_id > 0
+    StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+  endif
   self.Disable()
   self.Delete()
 EndEvent
 
 Event OnCellDetach()
+  if msg_id > 0
+    StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+  endif
   self.Disable()
   self.Delete()
 EndEvent

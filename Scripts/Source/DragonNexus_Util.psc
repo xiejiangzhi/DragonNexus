@@ -5,7 +5,7 @@ import MiscUtil
 
 Spell Property NewMsgSpell auto
 Form Property MsgActivator auto
-Form Property CellMarker auto
+Form Property MyMsgActivator auto
 DragonNexus_LoadThread[] Property Threads auto
 
 string Property MsgHost auto
@@ -14,8 +14,9 @@ int Property MaxCellMsg auto
 string ConfFile = "DragonNexus.json"
 
 Actor Player = None
+String PlayerName = "None"
 
-Int UpdateInterval = 3
+float UpdateInterval = 1.5
 Cell LastCell = None
 
 string[] MsgHeaderKeys
@@ -25,26 +26,35 @@ int SendMsgHandle
 float LastResetActivatorAt = 0.
 float LastClearBlockedMsgAt = 0.
 
+float LastSendMsgTime = -1000.
+float SendMsgCooldown = 60.
+
 Event OnInit()
   Player = Game.GetPlayer()
   Player.AddSpell(NewMsgSpell)
 
   PlayerEnterGame()
 
-  ; PO3_Events_Form.RegisterForCellFullyLoaded(self)
   RegisterForSingleUpdate(UpdateInterval)
+
+  ; PO3_Events_Form.RegisterForCellFullyLoaded(self as form)
 endEvent
+
+; Event OnCellFullyLoaded(Cell akCell)
+;   Log("PO3 cell load: " + akCell)
+;   LoadCellMsgs(akCell)
+; EndEvent
 
 Event OnUpdate()
   RegisterForSingleUpdate(UpdateInterval)
 
-  Cell current_cell = Game.GetPlayer().GetParentCell()
+  Cell current_cell = Player.GetParentCell()
   if current_cell == LastCell
     return
   endif
 
   LastCell = current_cell
-  Log("enter new cell: " + current_cell)
+  Log("Enter new cell: " + current_cell)
   LoadCellMsgs(current_cell)
 EndEvent
 
@@ -52,6 +62,13 @@ function PlayerEnterGame()
   MsgHost = JsonUtil.GetPathStringValue(ConfFile, "Host", "http://127.0.0.1:3000")
   Log("Host: " + MsgHost)
   MaxCellMsg = JsonUtil.GetPathIntValue(ConfFile, "MaxCellMsg", 32)
+
+  PlayerName = JsonUtil.GetPathStringValue(ConfFile, "PlayerName", "")
+  if PlayerName == ""
+    PlayerName = Player.GetLeveledActorBase().GetName()
+  endif
+
+  LastCell = None
 
   float time = Utility.GetCurrentRealTime()
   float ResetActivatorInterval = JsonUtil.GetPathIntValue(ConfFile, "ResetActivatorHour", 24) * 3600.
@@ -68,39 +85,24 @@ function PlayerEnterGame()
 endfunction
 
 function LoadCellMsgs(Cell tcell)
-  if IsCellLoaded(tcell)
+  if !tcell.IsAttached()
     Log("SKip loaded cell: " + tcell)
     return
   endif
 
-  if !PlaceCellMarker()
-    return
-  endif
-  Utility.wait(0.1)
-
-  Log("Pull cell msg: " + tcell)
+  ; take a thread
   DragonNexus_LoadThread thread = TakeThread()
+  while !thread && tcell.IsAttached()
+    thread = TakeThread()
+    Utility.wait(1.5)
+  endwhile
+
   if thread
+    Log("Pull cell msg: " + tcell)
     thread.StartLoadCell(tcell)
   else
     Log("Not found idle thread.")
   endif
-endfunction
-
-bool function IsCellLoaded(Cell tcell)
-  string cell_id = "cell_" + tcell.GetFormID() as string
-  return StorageUtil.HasIntValue(self as Form, cell_id)
-endfunction
-
-function MarkCellLoaded(Cell tcell)
-  ; don't allow duplicate
-  string cell_id = "cell_" + tcell.GetFormID() as string
-  StorageUtil.SetIntValue(self as Form, cell_id, 1)
-endfunction
-
-function MarkCellUnloaded(Cell tcell)
-  string cell_id = "cell_" + tcell.GetFormID() as string
-  StorageUtil.UnsetIntValue(self as Form, cell_id)
 endfunction
 
 function ActivateMsg(int id)
@@ -112,18 +114,18 @@ bool function IsActivatedMsg(int id)
 endfunction
 
 function LikeMsg(int id)
-  string url = MsgHost + "/msg/like?id=" + id
+  string url = MsgHost + "/msg/like?msg_id=" + id
   HTTPUtils.Request_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 function DislikeMsg(int id)
   StorageUtil.SetIntValue(self as Form, "blocked_msg_" + id, 1)
-  string url = MsgHost + "/msg/dislike?id=" + id
+  string url = MsgHost + "/msg/dislike?msg_id=" + id
   HTTPUtils.Request_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
-bool function IsBlockedMsg(int id)
-  return StorageUtil.HasIntValue(self as Form, "blocked_msg_" + id)
+bool function CanPlaceMsg(int id)
+  return !StorageUtil.HasIntValue(self as Form, "blocked_msg_" + id) && !StorageUtil.HasIntValue(self as Form, "msg_" + id)
 endfunction
 
 DragonNexus_LoadThread function TakeThread()
@@ -143,24 +145,19 @@ function PushIdleThread(DragonNexus_LoadThread thread)
   Threads[thread.ThreadIdx] = thread
 endfunction
 
-bool function PlaceCellMarker()
-  ObjectReference marker = Player.PlaceAtMe(CellMarker, 1)
-  if marker
-    ; marker.setScale(0.001)
-    return true
-  endif
-endfunction
-
 ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_type, string msg_val, float x, float y, float z, float angle)
-  ObjectReference obj = Player.PlaceAtMe(MsgActivator, 1)
+  ObjectReference obj
+  if sender == PlayerName
+    obj = Player.PlaceAtMe(MyMsgActivator, 1)
+  else
+    obj = Player.PlaceAtMe(MsgActivator, 1)
+  endif
   if obj
     DragonNexus_Msg msg_obj = obj as DragonNexus_Msg
     msg_obj.SetPosition(x, y, z)
     msg_obj.SetAngle(0, angle, 0)
     msg_obj.SetMsgData(id, sender, msg, msg_type, msg_val)
-    ; Log("success place activator")
-  ; else
-    ; Log("Failed to place activator")
+    StorageUtil.SetIntValue(self as Form, "msg_" + id, 1)
   endif
 
   return obj
@@ -171,8 +168,20 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
     return
   endif
 
+  float time = Utility.GetCurrentRealTime()
+  if time < (LastSendMsgTime + SendMsgCooldown)
+    float v = (LastSendMsgTime + SendMsgCooldown) - time
+    Debug.Notification("DragonNexus cooldown " + v as int + "s")
+    return
+  endif
+  LastSendMsgTime = time
+
   if SendMsgHandle
     HTTPUtils.Destroy(SendMsgHandle)
+  endif
+
+  if !ApplyMsgCost(msg_type, msg_val, duration)
+    return
   endif
 
   string[] keys = new string[10]
@@ -188,23 +197,52 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   keys[8] = "angle"
   keys[9] = "duration"
 
-  Actor player = Game.GetPlayer()
-  string sender = player.GetLeveledActorBase().GetName()
   vals[0] = "SSE_" + LastCell.GetFormID() as string
-  vals[1] = sender
+  vals[1] = PlayerName
   vals[2] = msg
   vals[3] = msg_type
   vals[4] = msg_val
-  vals[5] = player.x as string
-  vals[6] = player.y as string
-  vals[7] = player.z as string
-  vals[8] = player.GetAngleY() as string
+  vals[5] = Player.x as string
+  vals[6] = Player.y as string
+  vals[7] = Player.z as string
+  vals[8] = Player.GetAngleY() as string
   vals[9] = duration as string
 
   Debug.Notification("[DragonNexus] Sending message...")
   string url = MsgHost + "/msg/add"
   string body = HTTPUtils.FormatJSON(keys, vals, true)
   SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 5000, body, MsgHeaderKeys, MsgHeaderVals)
+endfunction
+
+bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
+  if msg_type == "monster"
+    Form gem = Game.GetForm(0x2E4F3)
+    if Player.GetItemCount(gem) >= 1
+      Player.RemoveItem(gem, 1)
+      return true
+    else
+      Debug.Notification("Not enough " + gem.GetName())
+    endif
+  elseif msg_type == "item"
+    Form coin = Game.GetForm(0xf)
+    if Player.GetItemCount(coin) >= 500
+      Player.RemoveItem(coin, 500)
+      return true
+    else
+      Debug.Notification("Not enough " + coin.GetName())
+    endif
+  elseif msg_type == "misc"
+    Form coin = Game.GetForm(0xf)
+    if Player.GetItemCount(coin) >= 500
+      Player.RemoveItem(coin, 500)
+      return true
+    else
+      Debug.Notification("Not enough " + coin.GetName())
+    endif
+  else
+    return true
+  endif
+  return false
 endfunction
 
 function Log(string msg)
@@ -230,5 +268,9 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
 EndEvent
 
 Event OnRequestFail(Int aiHandle, Int aiStatusCode)
-  Debug.Notification("[DragonNexus] Failed to send message")
+  if aiHandle == SendMsgHandle
+    Debug.Notification("[DragonNexus] Failed to send message")
+  else
+    Log("[DragonNexus] Failed to like/dislike message")
+  endif
 EndEvent

@@ -24,7 +24,7 @@ function ShowMsgMenu()
     UIExtensions.OpenMenu("UITextEntryMenu")
     string str = UIExtensions.GetMenuResultString("UITextEntryMenu")
     if str != ""
-      msg = msg
+      msg = str
     endif
     ShowMsgMenu()
   elseif ret == 1
@@ -34,10 +34,7 @@ function ShowMsgMenu()
     if msg == ""
       return
     endif
-    Actor player = Game.GetPlayer()
-    if ApplyMsgCost() || true
-      Util.SendMsg(msg, msg_type, msg_val)
-    endif
+    Util.SendMsg(msg, msg_type, msg_val)
   elseif ret == 3
     ; cancel
   endif
@@ -49,14 +46,32 @@ function ShowMsgTypeMenu()
     msg_type = "plain"
     ShowMsgMenu()
   elseif ret == 1
-    msg_type = "monster"
-    ShowMsgTypeMonsterMenu()
+    Form gem = Game.GetForm(0x2E4F3)
+    if Game.GetPlayer().GetItemCount(gem) >= 1
+      msg_type = "monster"
+      ShowMsgTypeMonsterMenu()
+    else
+      Debug.Notification("Not enough " + gem.GetName())
+      ShowMsgTypeMenu()
+    endif
   elseif ret == 2
-    msg_type = "item"
-    ShowMsgTypeItemMenu()
+    Form coin = Game.GetForm(0xf)
+    if Game.GetPlayer().GetItemCount(coin) >= 500
+      msg_type = "item"
+      ShowMsgTypeItemMenu()
+    else
+      Debug.Notification("Not enough " + coin.GetName())
+      ShowMsgTypeMenu()
+    endif
   elseif ret == 3
-    msg_type = "misc"
-    ShowMsgTypeMiscMenu()
+    Form coin = Game.GetForm(0xf)
+    if Game.GetPlayer().GetItemCount(coin) >= 500
+      msg_type = "misc"
+      ShowMsgTypeMiscMenu()
+    else
+      Debug.Notification("Not enough " + coin.GetName())
+      ShowMsgTypeMenu()
+    endif
   else
     ShowMsgMenu()
   endif
@@ -77,33 +92,3 @@ function ShowMsgTypeMiscMenu()
   ShowMsgMenu()
 endfunction
 
-bool function ApplyMsgCost()
-  Actor player = Game.GetPlayer()
-
-  if msg_type == "monster"
-    Form gem = Game.GetForm(0x2E4F3)
-    if player.GetItemCount(gem) >= 1
-      player.RemoveItem(gem, 1)
-      return true
-    else
-      Debug.Notification("Not enough " + gem.GetName())
-    endif
-  elseif msg_type == "item"
-    Form coin = Game.GetForm(0xf)
-    if player.GetItemCount(coin) >= 500
-      player.RemoveItem(coin, 500)
-      return true
-    else
-      Debug.Notification("Not enough " + coin.GetName())
-    endif
-  elseif msg_type == "misc"
-    Form coin = Game.GetForm(0xf)
-    if player.GetItemCount(coin) >= 500
-      player.RemoveItem(coin, 500)
-      return true
-    else
-      Debug.Notification("Not enough " + coin.GetName())
-    endif
-  endif
-  return false
-endfunction
