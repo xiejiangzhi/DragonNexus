@@ -41,7 +41,6 @@ endfunction
 ; return http_handle
 int function PullCellMsgs(Cell tcell)
   string url = Util.MsgHost + "/msg/list?area_id=SSE_" + tcell.GetFormID() as string
-  ; Util.Log("list URL: " + url)
   return HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStrList, EmptyStrList, EmptyStrList, EmptyStrList)
 endfunction
 

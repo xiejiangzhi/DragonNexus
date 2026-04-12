@@ -37,7 +37,7 @@ Event OnActivate(ObjectReference akActionRef)
     return
   endif
 
-  if activated || player.IsSneaking()
+  if player.IsSneaking()
     int ret = MsgMenu.Show()
     if ret == 0
       if !activated
@@ -46,11 +46,9 @@ Event OnActivate(ObjectReference akActionRef)
         Util.ActivateMsg(msg_id)
       endif
     elseif ret == 1
-      ; like
       Util.LikeMsg(msg_id)
       liked = true
     elseif ret == 2
-      ; dislike
       Util.DislikeMsg(msg_id)
       self.Disable()
       self.Delete()
@@ -63,13 +61,13 @@ Event OnActivate(ObjectReference akActionRef)
   endif
 endEvent
 
-Event OnUnload()
-  if msg_id > 0
-    StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
-    self.Disable()
-    self.Delete()
-  endif
-EndEvent
+; Event OnUnload()
+;   if msg_id > 0
+;     StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+;     self.Disable()
+;     self.Delete()
+;   endif
+; EndEvent
 
 Event OnCellUnload()
   if msg_id > 0

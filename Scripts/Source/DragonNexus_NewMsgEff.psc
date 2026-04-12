@@ -13,7 +13,9 @@ string msg_type = "plain"
 string msg_val = ""
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
-  ShowMsgMenu()
+  if Util.CanSendMsg()
+    ShowMsgMenu()
+  endif
 endEvent
 
 function ShowMsgMenu()

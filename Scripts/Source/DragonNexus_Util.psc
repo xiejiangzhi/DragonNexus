@@ -59,6 +59,8 @@ Event OnUpdate()
 EndEvent
 
 function PlayerEnterGame()
+  LastCell = None
+
   MsgHost = JsonUtil.GetPathStringValue(ConfFile, "Host", "http://127.0.0.1:3000")
   Log("Host: " + MsgHost)
   MaxCellMsg = JsonUtil.GetPathIntValue(ConfFile, "MaxCellMsg", 32)
@@ -67,8 +69,6 @@ function PlayerEnterGame()
   if PlayerName == ""
     PlayerName = Player.GetLeveledActorBase().GetName()
   endif
-
-  LastCell = None
 
   float time = Utility.GetCurrentRealTime()
   float ResetActivatorInterval = JsonUtil.GetPathIntValue(ConfFile, "ResetActivatorHour", 24) * 3600.
@@ -161,6 +161,21 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
   endif
 
   return obj
+endfunction
+
+bool function CanSendMsg()
+  if !LastCell
+    Debug.Notification("Invalid area")
+    return false
+  endif
+
+  float time = Utility.GetCurrentRealTime()
+  if time < (LastSendMsgTime + SendMsgCooldown)
+    float v = (LastSendMsgTime + SendMsgCooldown) - time
+    Debug.Notification("DragonNexus cooldown " + v as int + "s")
+    return false
+  endif
+  return true
 endfunction
 
 function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
