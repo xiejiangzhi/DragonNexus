@@ -41,7 +41,9 @@ endfunction
 ; return http_handle
 int function PullCellMsgs(Cell tcell)
   string url = Util.MsgHost + "/msg/list?area_id=SSE_" + Util.CalcCellID(tcell)
-  return HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStrList, EmptyStrList, EmptyStrList, EmptyStrList)
+  Util.Log("HTTP pull msgs " + url)
+  int handle = HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStrList, EmptyStrList, EmptyStrList, EmptyStrList)
+  return  handle
 endfunction
 
 Event OnRequestSuccess(Int aiHandle, String asResponse)
@@ -77,7 +79,7 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
 EndEvent
 
 Event OnRequestFail(Int aiHandle, Int aiStatusCode)
-  Util.Log("Failed to pull cell msgs:" + aiStatusCode)
+  Util.Log("Failed to pull cell msgs: " + aiStatusCode)
   Status = "Failed"
   StopThread()
 EndEvent

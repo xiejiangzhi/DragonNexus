@@ -6,6 +6,7 @@ import MiscUtil
 Spell Property NewMsgSpell auto
 Form Property MsgActivator auto
 Form Property MyMsgActivator auto
+Form Property DeathMsgActivator auto
 DragonNexus_LoadThread[] Property Threads auto
 
 string Property MsgHost auto
@@ -64,7 +65,6 @@ Event OnUpdate()
   endif
 
   LastCell = current_cell
-  Log("Enter new cell: " + CalcCellID(LastCell))
   LoadCellMsgs(current_cell)
 EndEvent
 
@@ -84,17 +84,19 @@ function PlayerEnterGame()
     PlayerName = Player.GetLeveledActorBase().GetName()
   endif
 
-  float time = Utility.GetCurrentRealTime()
-  float ResetActivatorInterval = JsonUtil.GetPathIntValue(ConfFile, "ResetActivatorHour", 24) * 3600.
-  if time > (LastResetActivatorAt + ResetActivatorInterval)
+  float days = Utility.GetCurrentGameTime()
+  float ResetActivatorInterval = JsonUtil.GetPathIntValue(ConfFile, "ResetActivatorHour", 24) / 24.
+  if days > (LastResetActivatorAt + ResetActivatorInterval)
     StorageUtil.ClearObjIntValuePrefix(self as Form, "act_msg_")
-    LastResetActivatorAt = time
+    LastResetActivatorAt = days
+    Log("Reset activator")
   endif
 
-  float BlockedResetInterval = JsonUtil.GetPathIntValue(ConfFile, "ClearBlockedMsgHour", 72) * 3600.
-  if time > (LastClearBlockedMsgAt + BlockedResetInterval)
+  float BlockedResetInterval = JsonUtil.GetPathIntValue(ConfFile, "ClearBlockedMsgHour", 168) / 24.
+  if days > (LastClearBlockedMsgAt + BlockedResetInterval)
     StorageUtil.ClearObjIntValuePrefix(self as Form, "blocked_msg_")
-    LastClearBlockedMsgAt = time
+    LastClearBlockedMsgAt = days
+    Log("Clear blocked messages")
   endif
 
   StorageUtil.ClearObjIntValuePrefix(self as Form, "msg_pri_id_")
@@ -102,7 +104,7 @@ endfunction
 
 function LoadCellMsgs(Cell tcell)
   if !tcell.IsAttached()
-    Log("SKip loaded cell: " + tcell)
+    ; Log("Skip loaded cell: " + tcell)
     return
   endif
 
@@ -163,7 +165,9 @@ endfunction
 
 ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_type, string msg_val, float x, float y, float z, float angle, int like_level)
   ObjectReference obj
-  if sender == PlayerName
+  if msg_type == "death"
+    obj = Player.PlaceAtMe(DeathMsgActivator, 1)
+  elseif sender == PlayerName
     obj = Player.PlaceAtMe(MyMsgActivator, 1)
   else
     obj = Player.PlaceAtMe(MsgActivator, 1)
@@ -171,7 +175,7 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
   if obj
     DragonNexus_Msg msg_obj = obj as DragonNexus_Msg
     msg_obj.SetPosition(x, y, z)
-    msg_obj.SetAngle(0, angle, 0)
+    msg_obj.SetAngle(0, 0, angle)
     msg_obj.SetMsgData(id, sender, msg, msg_type, msg_val, like_level)
     StorageUtil.SetIntValue(self as Form, "msg_" + id, 1)
   endif
@@ -238,7 +242,7 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   vals[5] = Player.x as string
   vals[6] = Player.y as string
   vals[7] = Player.z as string
-  vals[8] = Player.GetAngleY() as string
+  vals[8] = Player.GetAngleZ() as string
   vals[9] = duration as string
 
   Debug.Notification("[DragonNexus] Sending message...")
@@ -249,13 +253,12 @@ endfunction
 
 function SendDeathMsg()
   if DeathMsg != ""
-    SendMsg(DeathMsg, "plain", "", 0)
+    SendMsg(DeathMsg, "death", "", 0)
   endif
 endfunction
 
 bool function CanDelMsg(int msg_id)
   int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
-  Log("Test pri_id: " + msg_id + " -> " + pri_id)
   return pri_id >= 0
 endfunction
 
@@ -342,8 +345,6 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     int like_level = HTTPUtils.GetJSONInt(aiHandle, "/like_level")
     int pri_id = HTTPUtils.GetJSONInt(aiHandle, "/pri_id")
 
-    Log("New pri_id: " + id + " -> " + pri_id)
-
     StorageUtil.SetIntValue(self as Form, "msg_pri_id_" + id, pri_id)
     PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level)
   endif
@@ -353,6 +354,6 @@ Event OnRequestFail(Int aiHandle, Int aiStatusCode)
   if aiHandle == SendMsgHandle
     Debug.Notification("[DragonNexus] Failed to send message")
   else
-    Log("[DragonNexus] Failed to like/dislike message")
+    Log("[DragonNexus] Failed to send HTTP request")
   endif
 EndEvent
