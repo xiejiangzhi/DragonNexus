@@ -104,7 +104,7 @@ function ApplyMsgAction()
     if monster
       self.PlaceAtMe(monster)
     endif
-  elseif  msg_type == "item"
+  elseif msg_type == "item"
     Form item = Items.GetAt(msg_val as int)
     if item
       player.AddItem(item, 1)

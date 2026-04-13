@@ -4,5 +4,8 @@
   "ResetActivatorHour": 24,
   "ClearBlockedMsgHour": 168,
 
+  "DeathMsgHealth": 1.0,
+  "DeathMsg": "I just took an arrow in the knee...",
+
   "PlayerName": ""
 }

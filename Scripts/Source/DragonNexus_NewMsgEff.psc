@@ -17,7 +17,7 @@ int duration = 86400
 string next_menu = ""
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
-  if !Util.CanSendMsg()
+  if !Util.CanSendMsg(true)
     return
   endif
 

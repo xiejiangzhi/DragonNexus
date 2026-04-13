@@ -29,6 +29,10 @@ float LastClearBlockedMsgAt = 0.
 float LastSendMsgTime = -1000.
 float SendMsgCooldown = 60.
 
+float DeathMsgHealth = 1.
+bool HealthRestored = false
+string DeathMsg = "I just took an arrow in the knee..."
+
 Event OnInit()
   Player = Game.GetPlayer()
   Player.AddSpell(NewMsgSpell)
@@ -47,14 +51,20 @@ endEvent
 
 Event OnUpdate()
   RegisterForSingleUpdate(UpdateInterval)
-
   Cell current_cell = Player.GetParentCell()
   if current_cell == LastCell
+    float hp = player.GetAV("Health")
+    if hp >= 100
+      HealthRestored = true
+    elseif HealthRestored && hp <= DeathMsgHealth && CanSendMsg(false)
+      HealthRestored = false
+      SendDeathMsg()
+    endif
     return
   endif
 
   LastCell = current_cell
-  Log("Enter new cell: " + current_cell)
+  Log("Enter new cell: " + CalcCellID(LastCell))
   LoadCellMsgs(current_cell)
 EndEvent
 
@@ -65,6 +75,9 @@ function PlayerEnterGame()
   MsgHost = JsonUtil.GetPathStringValue(ConfFile, "Host", "http://127.0.0.1:3000")
   Log("Host: " + MsgHost)
   MaxCellMsg = JsonUtil.GetPathIntValue(ConfFile, "MaxCellMsg", 32)
+
+  DeathMsgHealth = JsonUtil.GetPathFloatValue(ConfFile, "DeathMsgHealth", 1.)
+  DeathMsg = JsonUtil.GetPathStringValue(ConfFile, "DeathMsg", "")
 
   PlayerName = JsonUtil.GetPathStringValue(ConfFile, "PlayerName", "")
   if PlayerName == ""
@@ -166,7 +179,7 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
   return obj
 endfunction
 
-bool function CanSendMsg()
+bool function CanSendMsg(bool show_msg = false)
   if !LastCell
     Debug.Notification("Invalid area")
     return false
@@ -174,8 +187,10 @@ bool function CanSendMsg()
 
   float time = Utility.GetCurrentRealTime()
   if time < (LastSendMsgTime + SendMsgCooldown)
-    float v = (LastSendMsgTime + SendMsgCooldown) - time
-    Debug.Notification("DragonNexus cooldown " + (v as int) + "s")
+    if show_msg
+      float v = (LastSendMsgTime + SendMsgCooldown) - time
+      Debug.Notification("DragonNexus cooldown " + (v as int) + "s")
+    endif
     return false
   endif
   return true
@@ -215,7 +230,7 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   keys[8] = "angle"
   keys[9] = "duration"
 
-  vals[0] = "SSE_" + LastCell.GetFormID() as string
+  vals[0] = "SSE_" + CalcCellID(LastCell)
   vals[1] = PlayerName
   vals[2] = msg
   vals[3] = msg_type
@@ -232,14 +247,20 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 5000, body, MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
+function SendDeathMsg()
+  if DeathMsg != ""
+    SendMsg(DeathMsg, "plain", "", 0)
+  endif
+endfunction
+
 bool function CanDelMsg(int msg_id)
   int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
+  Log("Test pri_id: " + msg_id + " -> " + pri_id)
   return pri_id >= 0
 endfunction
 
 function DelMsg(int msg_id)
   int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
-
   if pri_id >= 0
     string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&pri_id=" + pri_id
     HTTPUtils.RequestJSON_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
@@ -298,6 +319,13 @@ function Log(string msg)
   MiscUtil.PrintConsole("[DragonNexus] " + msg)
 endfunction
 
+string function CalcCellID(Cell tcell)
+  int fid = tcell.GetFormID()
+  int mod_idx = fid / 16777216
+  int rid = fid - (mod_idx * 16777216)
+  return Game.GetModName(mod_idx) + ":" + rid
+endfunction
+
 Event OnRequestSuccess(Int aiHandle, String asResponse)
   if aiHandle == SendMsgHandle
     Log("Successfully send msg")
@@ -313,6 +341,8 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     float angle = HTTPUtils.GetJSONFloat(aiHandle, "/angle")
     int like_level = HTTPUtils.GetJSONInt(aiHandle, "/like_level")
     int pri_id = HTTPUtils.GetJSONInt(aiHandle, "/pri_id")
+
+    Log("New pri_id: " + id + " -> " + pri_id)
 
     StorageUtil.SetIntValue(self as Form, "msg_pri_id_" + id, pri_id)
     PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level)
