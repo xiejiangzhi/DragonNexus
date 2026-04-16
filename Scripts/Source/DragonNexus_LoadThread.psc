@@ -13,7 +13,6 @@ int MaxCellMsg = 32
 
 string[] EmptyStrList
 
-
 function StartLoadCell(Cell tcell)
   if !tcell
     StopThread()
@@ -40,10 +39,14 @@ endfunction
 
 ; return http_handle
 int function PullCellMsgs(Cell tcell)
-  string url = Util.MsgHost + "/msg/list?area_id=SSE_" + Util.CalcCellID(tcell)
-  Util.Log("HTTP pull msgs " + url)
-  int handle = HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStrList, EmptyStrList, EmptyStrList, EmptyStrList)
-  return  handle
+  string url = Util.MsgHost + "/msg/list"
+  Util.Log("HTTP pull msgs " + url + " | time: " + Utility.GetCurrentRealTime())
+  string[] keys = new string[1]
+  keys[0] = "area_id"
+  string[] vals = new string[1]
+  vals[0] = "SSE_" + Util.CalcCellID(tcell)
+  int handle = HTTPUtils.RequestJSON_GET(self, url, 3000, keys, vals, EmptyStrList, EmptyStrList)
+  return handle
 endfunction
 
 Event OnRequestSuccess(Int aiHandle, String asResponse)
@@ -79,7 +82,7 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
 EndEvent
 
 Event OnRequestFail(Int aiHandle, Int aiStatusCode)
-  Util.Log("Failed to pull cell msgs: " + aiStatusCode)
+  Util.Log("Failed to pull cell msgs: " + aiStatusCode + " | Time: " + Utility.GetCurrentRealTime())
   Status = "Failed"
   StopThread()
 EndEvent

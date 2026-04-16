@@ -99,6 +99,7 @@ function PlayerEnterGame()
     Log("Clear blocked messages")
   endif
 
+  ; server pri_id maybe expired, clear it to avoid get invalid pri_id
   StorageUtil.ClearObjIntValuePrefix(self as Form, "msg_pri_id_")
 endfunction
 
@@ -133,13 +134,13 @@ endfunction
 
 function LikeMsg(int id)
   string url = MsgHost + "/msg/like?msg_id=" + id
-  HTTPUtils.Request_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
+  HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 function DislikeMsg(int id)
   StorageUtil.SetIntValue(self as Form, "blocked_msg_" + id, 1)
   string url = MsgHost + "/msg/dislike?msg_id=" + id
-  HTTPUtils.Request_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
+  HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 bool function CanPlaceMsg(int id)
@@ -248,7 +249,7 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   Debug.Notification("[DragonNexus] Sending message...")
   string url = MsgHost + "/msg/add"
   string body = HTTPUtils.FormatJSON(keys, vals, true)
-  SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 5000, body, MsgHeaderKeys, MsgHeaderVals)
+  SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 3000, body, MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 function SendDeathMsg()
@@ -266,7 +267,7 @@ function DelMsg(int msg_id)
   int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
   if pri_id >= 0
     string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&pri_id=" + pri_id
-    HTTPUtils.RequestJSON_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
+    HTTPUtils.RequestJSON_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
   endif
 endfunction
 
@@ -300,16 +301,15 @@ bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
   endif
 
   if duration > 86400
-    Form gem = Game.GetForm(0x2E4FF)
-    int item_n = 1
+    Form gem
     if duration >= (86400 * 3)
-      item_n = 2
+      gem = Game.GetForm(0x2E4FF)
     elseif duration >= (86400 * 2)
-      item_n = 1
+      gem = Game.GetForm(0x2E4FB)
     endif
 
-    if Player.GetItemCount(gem) >= item_n
-      Player.RemoveItem(gem, item_n)
+    if gem && Player.GetItemCount(gem) >= 1
+      Player.RemoveItem(gem, 1)
       return true
     else
       Debug.Notification("Not enough " + gem.GetName())
@@ -354,6 +354,6 @@ Event OnRequestFail(Int aiHandle, Int aiStatusCode)
   if aiHandle == SendMsgHandle
     Debug.Notification("[DragonNexus] Failed to send message")
   else
-    Log("[DragonNexus] Failed to send HTTP request")
+    Log("Failed to send HTTP request")
   endif
 EndEvent

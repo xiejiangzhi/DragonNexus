@@ -129,7 +129,7 @@ function ShowMsgDurationMenu()
     duration = 86400
     next_menu = "new_msg"
   elseif ret == 1
-    Form gem = Game.GetForm(0x2E4FF)
+    Form gem = Game.GetForm(0x2E4FB)
     if Game.GetPlayer().GetItemCount(gem) >= 1
       duration = 86400 * 2
       next_menu = "new_msg"
@@ -139,7 +139,7 @@ function ShowMsgDurationMenu()
     endif
   elseif ret == 2
     Form gem = Game.GetForm(0x2E4FF)
-    if Game.GetPlayer().GetItemCount(gem) >= 2
+    if Game.GetPlayer().GetItemCount(gem) >= 1
       duration = 86400 * 3
       next_menu = "new_msg"
     else
