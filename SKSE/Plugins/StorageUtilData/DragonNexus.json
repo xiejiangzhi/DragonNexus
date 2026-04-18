@@ -7,5 +7,8 @@
   "DeathMsgHealth": 1.0,
   "DeathMsg": "I just took an arrow in the knee...",
 
+  "DisableNotifyLatestMsg": false,
+  "NotifyLatestMsgInterval": 30,
+
   "PlayerName": ""
 }

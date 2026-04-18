@@ -73,6 +73,14 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
       endif
       i += 1
     endwhile
+
+    int last_msg_id = HTTPUtils.GetJSONInt(aiHandle, "/last_msg/id", 0)
+    if last_msg_id > 0 && Util.CanNotifyLatestMsg(last_msg_id)
+      string last_sender = HTTPUtils.GetJSONString(aiHandle, "/last_msg/player")
+      string last_area_id = HTTPUtils.GetJSONString(aiHandle, "/last_msg/area_id")
+      string last_msg_type = HTTPUtils.GetJSONString(aiHandle, "/last_msg/msg_type")
+      Util.NotifyLatestMsg(last_msg_id, last_area_id, last_sender, last_msg_type)
+    endif
     StopThread()
   else
     Status = "Failed"

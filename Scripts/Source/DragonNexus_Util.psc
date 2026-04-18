@@ -34,6 +34,11 @@ float DeathMsgHealth = 1.
 bool HealthRestored = false
 string DeathMsg = "I just took an arrow in the knee..."
 
+int LatestMsgId = 0
+float NotifyLatestMsgInterval = 30.
+float LastNotifyLatestMsgTime = 0.
+bool DisableNotifyLatestMsg = false
+
 Event OnInit()
   Player = Game.GetPlayer()
   Player.AddSpell(NewMsgSpell)
@@ -78,6 +83,10 @@ function PlayerEnterGame()
 
   DeathMsgHealth = JsonUtil.GetPathFloatValue(ConfFile, "DeathMsgHealth", 1.)
   DeathMsg = JsonUtil.GetPathStringValue(ConfFile, "DeathMsg", "")
+
+  LastNotifyLatestMsgTime = 0.
+  DisableNotifyLatestMsg = JsonUtil.GetPathBoolValue(ConfFile, "DisableNotifyLatestMsg", false)
+  NotifyLatestMsgInterval = JsonUtil.GetPathFloatValue(ConfFile, "NotifyLatestMsgInterval", 30.)
 
   PlayerName = JsonUtil.GetPathStringValue(ConfFile, "PlayerName", "")
   if PlayerName == ""
@@ -318,6 +327,30 @@ bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
   return false
 endfunction
 
+bool function CanNotifyLatestMsg(int id)
+  return !DisableNotifyLatestMsg && LatestMsgId != id && (Utility.GetCurrentRealTime() - LastNotifyLatestMsgTime) > NotifyLatestMsgInterval
+endfunction
+
+function NotifyLatestMsg(int id, string area_id, string sender, string msg_type)
+  if LatestMsgId == id
+    return
+  endif
+  LatestMsgId = id
+  LastNotifyLatestMsgTime = Utility.GetCurrentRealTime()
+
+  string area_name = GetNameByAreaId(area_id)
+  if area_name == ""
+    area_name = "???"
+  endif
+  if msg_type == "death"
+    Debug.Notification(sender + " was defeated at " + area_name)
+  elseif msg_type == "item"
+    Debug.Notification(sender + " placed an item at " + area_name)
+  else
+    Debug.Notification(sender + " placed a message at " + area_name)
+  endif
+endfunction
+
 function Log(string msg)
   MiscUtil.PrintConsole("[DragonNexus] " + msg)
 endfunction
@@ -327,6 +360,36 @@ string function CalcCellID(Cell tcell)
   int mod_idx = fid / 16777216
   int rid = fid - (mod_idx * 16777216)
   return Game.GetModName(mod_idx) + ":" + rid
+endfunction
+
+; area_id: SSE_xxx.esm:id
+; return name or ""
+string function GetNameByAreaId(string area_id)
+  int sep_idx = StringUtil.find(area_id, ":")
+  if sep_idx < 0
+    return ""
+  endif
+
+  int i = 0
+  int sep_idx2 = StringUtil.find(area_id, ":", sep_idx + 1)
+  while i < 5 && sep_idx2 >= 0
+    sep_idx = sep_idx2
+    int sep_idx2 = StringUtil.find(area_id, ":", sep_idx + 1)
+  endwhile
+
+  string mod_name = StringUtil.substring(area_id, 4, sep_idx - 4)
+  int form_id = StringUtil.substring(area_id, sep_idx + 1) as int
+
+  Cell tcell = Game.GetFormFromFile(form_id, mod_name) as Cell
+
+  if tcell
+    string name = tcell.GetName()
+    if name != ""
+      return name
+    endif
+  else
+    return ""
+  endif
 endfunction
 
 Event OnRequestSuccess(Int aiHandle, String asResponse)
@@ -345,6 +408,7 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     int like_level = HTTPUtils.GetJSONInt(aiHandle, "/like_level")
     int pri_id = HTTPUtils.GetJSONInt(aiHandle, "/pri_id")
 
+    LatestMsgId = id
     StorageUtil.SetIntValue(self as Form, "msg_pri_id_" + id, pri_id)
     PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level)
   endif
