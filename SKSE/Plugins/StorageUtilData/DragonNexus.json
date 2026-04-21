@@ -1,5 +1,5 @@
 {
-  "Host": "http://skyrimmsg.xjz.pw",
+  "Host": "https://skyrimmsg.xjz.pw",
   "MaxCellMsg": 32,
   "ResetActivatorHour": 24,
   "ClearBlockedMsgHour": 168,
@@ -10,5 +10,5 @@
   "DisableNotifyLatestMsg": false,
   "NotifyLatestMsgInterval": 30,
 
-  "PlayerName": ""
+  "PlayerName": "NoName"
 }
