@@ -39,6 +39,8 @@ float NotifyLatestMsgInterval = 30.
 float LastNotifyLatestMsgTime = 0.
 bool DisableNotifyLatestMsg = false
 
+string DefaultMsg = "I was here."
+
 Event OnInit()
   Player = Game.GetPlayer()
   Player.AddSpell(NewMsgSpell)
@@ -77,12 +79,14 @@ function PlayerEnterGame()
   LastCell = None
   LastSendMsgTime = -1000.
 
-  MsgHost = JsonUtil.GetPathStringValue(ConfFile, "Host", "http://127.0.0.1:3000")
+  MsgHost = JsonUtil.GetPathStringValue(ConfFile, "Host", "https://skyrimmsg.xjz.pw")
   Log("Host: " + MsgHost)
   MaxCellMsg = JsonUtil.GetPathIntValue(ConfFile, "MaxCellMsg", 32)
 
   DeathMsgHealth = JsonUtil.GetPathFloatValue(ConfFile, "DeathMsgHealth", 1.)
-  DeathMsg = JsonUtil.GetPathStringValue(ConfFile, "DeathMsg", "")
+  DeathMsg = JsonUtil.GetPathStringValue(ConfFile, "DeathMsg", "I just took an arrow in the knee...")
+
+  DefaultMsg = JsonUtil.GetPathStringValue(ConfFile, "DefaultMsg", "I was here.")
 
   LastNotifyLatestMsgTime = 0.
   DisableNotifyLatestMsg = JsonUtil.GetPathBoolValue(ConfFile, "DisableNotifyLatestMsg", false)
@@ -171,6 +175,10 @@ endfunction
 
 function PushIdleThread(DragonNexus_LoadThread thread)
   Threads[thread.ThreadIdx] = thread
+endfunction
+
+string function GetDefaultMsg()
+  return DefaultMsg
 endfunction
 
 ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_type, string msg_val, float x, float y, float z, float angle, int like_level)
@@ -291,8 +299,8 @@ bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
     endif
   elseif msg_type == "item"
     Form coin = Game.GetForm(0xf)
-    if Player.GetItemCount(coin) >= 500
-      Player.RemoveItem(coin, 500)
+    if Player.GetItemCount(coin) >= 300
+      Player.RemoveItem(coin, 300)
       return true
     else
       Debug.Notification("Not enough " + coin.GetName())

@@ -9,7 +9,7 @@ Message Property MsgTypeItemMenu auto
 Message Property MsgTypeMiscMenu auto
 Message Property MsgDurationMenu auto
 
-string msg = "hello"
+string msg = "I was here."
 string msg_type = "plain"
 string msg_val = ""
 int duration = 86400
@@ -20,6 +20,7 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
   if !Util.CanSendMsg(true)
     return
   endif
+  msg = Util.GetDefaultMsg()
 
   next_menu = "new_msg"
   while next_menu != ""
@@ -87,7 +88,7 @@ function ShowMsgTypeMenu()
     endif
   elseif ret == 2
     Form coin = Game.GetForm(0xf)
-    if Game.GetPlayer().GetItemCount(coin) >= 500
+    if Game.GetPlayer().GetItemCount(coin) >= 300
       msg_type = "item"
       next_menu = "type_item"
     else
@@ -126,12 +127,12 @@ endfunction
 function ShowMsgDurationMenu()
   int ret = MsgDurationMenu.Show()
   if ret == 0
-    duration = 86400
+    duration = 0
     next_menu = "new_msg"
   elseif ret == 1
     Form gem = Game.GetForm(0x2E4FB)
     if Game.GetPlayer().GetItemCount(gem) >= 1
-      duration = 86400 * 2
+      duration = 86400 * 3
       next_menu = "new_msg"
     else
       Debug.Notification("Not enough " + gem.GetName())
@@ -140,7 +141,7 @@ function ShowMsgDurationMenu()
   elseif ret == 2
     Form gem = Game.GetForm(0x2E4FF)
     if Game.GetPlayer().GetItemCount(gem) >= 1
-      duration = 86400 * 3
+      duration = 86400 * 5
       next_menu = "new_msg"
     else
       Debug.Notification("Not enough " + gem.GetName())

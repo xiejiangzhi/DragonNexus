@@ -10,5 +10,7 @@
   "DisableNotifyLatestMsg": false,
   "NotifyLatestMsgInterval": 30,
 
-  "PlayerName": "NoName"
+  "PlayerName": "NoName",
+
+  "DefaultMsg": "I was here."
 }
