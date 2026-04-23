@@ -97,11 +97,12 @@ function PlayerEnterGame()
   LastCell = None
   LastSendMsgTime = -1000.
 
-  if JsonUtil.IsGood(UserConfFile)
+  if JsonUtil.JsonExists(UserConfFile) && JsonUtil.IsGood(UserConfFile)
     ConfFile = UserConfFile
   else
     ConfFile = DefaultConfFile
   endif
+  Log("Load config from " + ConfFile)
 
   MsgHost = GetConfString("Host", "https://skyrimmsg.xjz.pw")
   Log("Host: " + MsgHost)
