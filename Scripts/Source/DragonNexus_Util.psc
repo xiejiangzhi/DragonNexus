@@ -118,7 +118,6 @@ endfunction
 
 function LoadCellMsgs(Cell tcell)
   if !tcell.IsAttached()
-    ; Log("Skip loaded cell: " + tcell)
     return
   endif
 
@@ -130,10 +129,8 @@ function LoadCellMsgs(Cell tcell)
   endwhile
 
   if thread
-    Log("Pull cell msg: " + tcell)
+    Log("Start load cell msg: " + tcell)
     thread.StartLoadCell(tcell)
-  else
-    Log("Not found idle thread.")
   endif
 endfunction
 
@@ -289,50 +286,46 @@ function DelMsg(int msg_id)
 endfunction
 
 bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
+  Form item1
+  int item1_cost = 0
+
   if msg_type == "monster"
-    Form gem = Game.GetForm(0x2E4F3)
-    if Player.GetItemCount(gem) >= 1
-      Player.RemoveItem(gem, 1)
-      return true
-    else
-      Debug.Notification("Not enough " + gem.GetName())
-    endif
+    item1 = Game.GetForm(0x2E4F3) ; soul gem
+    item1_cost = 1
   elseif msg_type == "item"
-    Form coin = Game.GetForm(0xf)
-    if Player.GetItemCount(coin) >= 300
-      Player.RemoveItem(coin, 300)
-      return true
-    else
-      Debug.Notification("Not enough " + coin.GetName())
-    endif
+    item1 = Game.GetForm(0xf) ; coin
+    item1_cost = 300
   elseif msg_type == "misc"
-    Form coin = Game.GetForm(0xf)
-    if Player.GetItemCount(coin) >= 500
-      Player.RemoveItem(coin, 500)
-      return true
-    else
-      Debug.Notification("Not enough " + coin.GetName())
-    endif
-  else
-    return true
+    item1 = Game.GetForm(0xf) ; coin
+    item1_cost = 500
+  endif
+  if item1 && Player.GetItemCount(item1) < item1_cost
+    Debug.Notification("Not enough " + item1.GetName())
+    return false
   endif
 
-  if duration > 86400
-    Form gem
-    if duration >= (86400 * 3)
-      gem = Game.GetForm(0x2E4FF)
-    elseif duration >= (86400 * 2)
-      gem = Game.GetForm(0x2E4FB)
-    endif
-
-    if gem && Player.GetItemCount(gem) >= 1
-      Player.RemoveItem(gem, 1)
-      return true
-    else
-      Debug.Notification("Not enough " + gem.GetName())
-    endif
+  Form item2
+  int item2_cost = 0
+  if duration >= (86400 * 5)
+    item2 = Game.GetForm(0x2E4FF)
+    item2_cost = 1
+  elseif duration >= (86400 * 3)
+    item2 = Game.GetForm(0x2E4FB)
+    item2_cost = 1
   endif
-  return false
+  if item2 && Player.GetItemCount(item2) < item2_cost
+    Debug.Notification("Not enough " + item2.GetName())
+    return false
+  endif
+
+  if item1_cost >= 1
+    Player.RemoveItem(item1, item1_cost)
+  endif
+  if item2_cost >= 1
+    Player.RemoveItem(item2, item2_cost)
+  endif
+
+  return true
 endfunction
 
 bool function CanNotifyLatestMsg(int id)

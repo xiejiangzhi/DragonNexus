@@ -40,12 +40,13 @@ endfunction
 ; return http_handle
 int function PullCellMsgs(Cell tcell)
   string url = Util.MsgHost + "/msg/list"
-  Util.Log("HTTP pull msgs " + url + " | time: " + Utility.GetCurrentRealTime())
   string[] keys = new string[1]
   keys[0] = "area_id"
   string[] vals = new string[1]
-  vals[0] = "SSE_" + Util.CalcCellID(tcell)
-  int handle = HTTPUtils.RequestJSON_GET(self, url, 3000, keys, vals, EmptyStrList, EmptyStrList)
+  string area_id = Util.CalcCellID(tcell)
+  vals[0] = "SSE_" + area_id
+  Util.Log("HTTP pull msgs " + url + " | area_id: " + area_id + ", time: " + Utility.GetCurrentRealTime())
+  int handle = HTTPUtils.RequestJSON_GET(self, url, 4200, keys, vals, EmptyStrList, EmptyStrList)
   return handle
 endfunction
 

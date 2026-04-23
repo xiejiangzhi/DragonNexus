@@ -12,7 +12,7 @@ Message Property MsgDurationMenu auto
 string msg = "I was here."
 string msg_type = "plain"
 string msg_val = ""
-int duration = 86400
+int duration = 0
 
 string next_menu = ""
 
@@ -66,7 +66,7 @@ function ShowMsgMenu()
     if msg == ""
       return
     endif
-    Util.SendMsg(msg, msg_type, msg_val)
+    Util.SendMsg(msg, msg_type, msg_val, duration)
   elseif ret == 4
     ; cancel
   endif
