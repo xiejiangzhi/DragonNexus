@@ -12,7 +12,9 @@ DragonNexus_LoadThread[] Property Threads auto
 string Property MsgHost auto
 int Property MaxCellMsg auto
 
-string ConfFile = "DragonNexus.json"
+string ConfFile = "../DragonNexus.json"
+string UserConfFile = "../DragonNexus.User.json"
+string DefaultConfFile = "../DragonNexus.json"
 
 Actor Player = None
 String PlayerName = "None"
@@ -75,37 +77,59 @@ Event OnUpdate()
   LoadCellMsgs(current_cell)
 EndEvent
 
+string function GetConfString(string key, string default)
+  return JsonUtil.GetPathStringValue(ConfFile, key, default)
+endfunction
+
+float function GetConfFloat(string key, float default)
+  return JsonUtil.GetPathFloatValue(ConfFile, key, default)
+endfunction
+
+int function GetConfInt(string key, int default)
+  return JsonUtil.GetPathIntValue(ConfFile, key, default)
+endfunction
+
+bool function GetConfBool(string key, bool default)
+  return JsonUtil.GetPathBoolValue(ConfFile, key, default)
+endfunction
+
 function PlayerEnterGame()
   LastCell = None
   LastSendMsgTime = -1000.
 
-  MsgHost = JsonUtil.GetPathStringValue(ConfFile, "Host", "https://skyrimmsg.xjz.pw")
+  if JsonUtil.IsGood(UserConfFile)
+    ConfFile = UserConfFile
+  else
+    ConfFile = DefaultConfFile
+  endif
+
+  MsgHost = GetConfString("Host", "https://skyrimmsg.xjz.pw")
   Log("Host: " + MsgHost)
-  MaxCellMsg = JsonUtil.GetPathIntValue(ConfFile, "MaxCellMsg", 32)
+  MaxCellMsg = GetConfInt("MaxCellMsg", 32)
 
-  DeathMsgHealth = JsonUtil.GetPathFloatValue(ConfFile, "DeathMsgHealth", 1.)
-  DeathMsg = JsonUtil.GetPathStringValue(ConfFile, "DeathMsg", "I just took an arrow in the knee...")
+  DeathMsgHealth = GetConfFloat("DeathMsgHealth", 1.)
+  DeathMsg = GetConfString("DeathMsg", "I just took an arrow in the knee...")
 
-  DefaultMsg = JsonUtil.GetPathStringValue(ConfFile, "DefaultMsg", "I was here.")
+  DefaultMsg = GetConfString("DefaultMsg", "I was here.")
 
   LastNotifyLatestMsgTime = 0.
-  DisableNotifyLatestMsg = JsonUtil.GetPathBoolValue(ConfFile, "DisableNotifyLatestMsg", false)
-  NotifyLatestMsgInterval = JsonUtil.GetPathFloatValue(ConfFile, "NotifyLatestMsgInterval", 30.)
+  DisableNotifyLatestMsg = GetConfBool("DisableNotifyLatestMsg", false)
+  NotifyLatestMsgInterval = GetConfFloat("NotifyLatestMsgInterval", 30.)
 
-  PlayerName = JsonUtil.GetPathStringValue(ConfFile, "PlayerName", "")
+  PlayerName = GetConfString("PlayerName", "")
   if PlayerName == ""
     PlayerName = Player.GetLeveledActorBase().GetName()
   endif
 
   float days = Utility.GetCurrentGameTime()
-  float ResetActivatorInterval = JsonUtil.GetPathIntValue(ConfFile, "ResetActivatorHour", 24) / 24.
+  float ResetActivatorInterval = GetConfInt("ResetActivatorHour", 24) / 24.
   if days > (LastResetActivatorAt + ResetActivatorInterval)
     StorageUtil.ClearObjIntValuePrefix(self as Form, "act_msg_")
     LastResetActivatorAt = days
     Log("Reset activator")
   endif
 
-  float BlockedResetInterval = JsonUtil.GetPathIntValue(ConfFile, "ClearBlockedMsgHour", 168) / 24.
+  float BlockedResetInterval = GetConfInt("ClearBlockedMsgHour", 168) / 24.
   if days > (LastClearBlockedMsgAt + BlockedResetInterval)
     StorageUtil.ClearObjIntValuePrefix(self as Form, "blocked_msg_")
     LastClearBlockedMsgAt = days
@@ -182,7 +206,7 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
   ObjectReference obj
   if msg_type == "death"
     obj = Player.PlaceAtMe(DeathMsgActivator, 1)
-  elseif sender == PlayerName
+  elseif CanDelMsg(id)
     obj = Player.PlaceAtMe(MyMsgActivator, 1)
   else
     obj = Player.PlaceAtMe(MsgActivator, 1)
