@@ -19,12 +19,12 @@ string DefaultConfFile = "../DragonNexus.json"
 Actor Player = None
 String PlayerName = "None"
 
-float UpdateInterval = 1.5
 Cell LastCell = None
 
 string[] MsgHeaderKeys
 string[] MsgHeaderVals
 int SendMsgHandle
+string SendMsgAreaId
 
 float LastResetActivatorAt = 0.
 float LastClearBlockedMsgAt = 0.
@@ -49,32 +49,19 @@ Event OnInit()
 
   PlayerEnterGame()
 
-  RegisterForSingleUpdate(UpdateInterval)
-
-  ; PO3_Events_Form.RegisterForCellFullyLoaded(self as form)
+  RegisterForSingleUpdate(1.)
 endEvent
 
-; Event OnCellFullyLoaded(Cell akCell)
-;   Log("PO3 cell load: " + akCell)
-;   LoadCellMsgs(akCell)
-; EndEvent
-
 Event OnUpdate()
-  RegisterForSingleUpdate(UpdateInterval)
   Cell current_cell = Player.GetParentCell()
   if current_cell == LastCell
-    float hp = player.GetAV("Health")
-    if hp >= 100
-      HealthRestored = true
-    elseif HealthRestored && hp <= DeathMsgHealth && CanSendMsg(false)
-      HealthRestored = false
-      SendDeathMsg()
-    endif
     return
   endif
-
   LastCell = current_cell
-  LoadCellMsgs(current_cell)
+  RegisterForSingleUpdate(1.)
+
+  Cell[] AttachedCells = PO3_SKSEFunctions.GetAttachedCells()
+  LoadCellsMsgs(AttachedCells)
 EndEvent
 
 string function GetConfString(string key, string default)
@@ -91,6 +78,18 @@ endfunction
 
 bool function GetConfBool(string key, bool default)
   return JsonUtil.GetPathBoolValue(ConfFile, key, default)
+endfunction
+
+function OnHitPlayer()
+  float hp = Game.GetPlayer().GetAV("Health")
+  if HealthRestored
+    if hp <= DeathMsgHealth && CanSendMsg(false)
+      HealthRestored = false
+      SendDeathMsg()
+    endif
+  elseif hp >= 100
+    HealthRestored = true
+  endif
 endfunction
 
 function PlayerEnterGame()
@@ -141,21 +140,41 @@ function PlayerEnterGame()
   StorageUtil.ClearObjIntValuePrefix(self as Form, "msg_pri_id_")
 endfunction
 
-function LoadCellMsgs(Cell tcell)
-  if !tcell.IsAttached()
-    return
-  endif
+; Deprecated
+; function LoadCellMsgs(Cell tcell)
+;   string area_id = CalcCellID(tcell)
+;   if !tcell.IsAttached() || GetCellTotalMsgs(area_id) >= MaxCellMsg
+;     Log("Skip load cell msg " + tcell)
+;     return
+;   endif
 
+;   ; take a thread
+;   DragonNexus_LoadThread thread = TakeThread()
+;   while !thread && tcell.IsAttached()
+;     thread = TakeThread()
+;     Utility.wait(0.5)
+;   endwhile
+
+;   if thread
+;     Log("Start load cell msg: " + tcell)
+;     thread.StartLoadCellMsgs(tcell)
+;   endif
+; endfunction
+
+function LoadCellsMsgs(Cell[] tcells)
   ; take a thread
   DragonNexus_LoadThread thread = TakeThread()
-  while !thread && tcell.IsAttached()
+  int i = 0
+  while !thread && i < 60
     thread = TakeThread()
-    Utility.wait(1.5)
+    Utility.wait(0.5)
+    i += 1
   endwhile
 
   if thread
-    Log("Start load cell msg: " + tcell)
-    thread.StartLoadCell(tcell)
+    thread.StopThread();
+    Log("Start load cells msg: " + tcells.length)
+    thread.StartLoadCellsMsgs(tcells)
   endif
 endfunction
 
@@ -184,10 +203,10 @@ endfunction
 
 DragonNexus_LoadThread function TakeThread()
   int i = 0
-  while i <= 2
+  while i <= Threads.Length
     DragonNexus_LoadThread t = Threads[i]
     if t
-      Threads[i] = None
+      ; Threads[i] = None
       t.ThreadIdx = i
       return t
     endif
@@ -203,7 +222,7 @@ string function GetDefaultMsg()
   return DefaultMsg
 endfunction
 
-ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_type, string msg_val, float x, float y, float z, float angle, int like_level)
+ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_type, string msg_val, float x, float y, float z, float angle, int like_level, string area_id)
   ObjectReference obj
   if msg_type == "death"
     obj = Player.PlaceAtMe(DeathMsgActivator, 1)
@@ -216,7 +235,8 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
     DragonNexus_Msg msg_obj = obj as DragonNexus_Msg
     msg_obj.SetPosition(x, y, z)
     msg_obj.SetAngle(0, 0, angle)
-    msg_obj.SetMsgData(id, sender, msg, msg_type, msg_val, like_level)
+    msg_obj.SetMsgData(id, sender, msg, msg_type, msg_val, like_level, area_id)
+    UpdateCellTotalMsgs(area_id, 1)
     StorageUtil.SetIntValue(self as Form, "msg_" + id, 1)
   endif
 
@@ -224,11 +244,6 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
 endfunction
 
 bool function CanSendMsg(bool show_msg = false)
-  if !LastCell
-    Debug.Notification("Invalid area")
-    return false
-  endif
-
   float time = Utility.GetCurrentRealTime()
   if time < (LastSendMsgTime + SendMsgCooldown)
     if show_msg
@@ -241,10 +256,6 @@ bool function CanSendMsg(bool show_msg = false)
 endfunction
 
 function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
-  if !LastCell
-    return
-  endif
-
   float time = Utility.GetCurrentRealTime()
   if time < (LastSendMsgTime + SendMsgCooldown)
     float v = (LastSendMsgTime + SendMsgCooldown) - time
@@ -255,6 +266,7 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
 
   if SendMsgHandle
     HTTPUtils.Destroy(SendMsgHandle)
+    SendMsgHandle = 0
   endif
 
   if !ApplyMsgCost(msg_type, msg_val, duration)
@@ -274,7 +286,10 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   keys[8] = "angle"
   keys[9] = "duration"
 
-  vals[0] = "SSE_" + CalcCellID(LastCell)
+  Cell tcell = Player.GetParentCell()
+  Log("Cell Name: " + GetCellName(tcell))
+  SendMsgAreaId = CalcCellID(tcell)
+  vals[0] = "SSE_" + SendMsgAreaId
   vals[1] = PlayerName
   vals[2] = msg
   vals[3] = msg_type
@@ -308,6 +323,18 @@ function DelMsg(int msg_id)
     string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&pri_id=" + pri_id
     HTTPUtils.RequestJSON_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
   endif
+endfunction
+
+int function UpdateCellTotalMsgs(string area_id, int mod_n)
+  return StorageUtil.AdjustIntValue(self as Form, area_id, mod_n)
+endfunction
+
+function ResetCellTotalMsgs(string area_id)
+  StorageUtil.UnsetIntValue(self as Form, area_id)
+endfunction
+
+int function GetCellTotalMsgs(string area_id)
+  return StorageUtil.GetIntValue(self as Form, area_id, 0)
 endfunction
 
 bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
@@ -364,7 +391,7 @@ function NotifyLatestMsg(int id, string area_id, string sender, string msg_type)
   LatestMsgId = id
   LastNotifyLatestMsgTime = Utility.GetCurrentRealTime()
 
-  string area_name = GetNameByAreaId(area_id)
+  string area_name = GetCellName(GetCellByAreaId(area_id))
   if area_name == ""
     area_name = "???"
   endif
@@ -390,10 +417,11 @@ endfunction
 
 ; area_id: SSE_xxx.esm:id
 ; return name or ""
-string function GetNameByAreaId(string area_id)
+Cell function GetCellByAreaId(string area_id)
+  ; StorageUtil.GetFormValue
   int sep_idx = StringUtil.find(area_id, ":")
   if sep_idx < 0
-    return ""
+    return
   endif
 
   int i = 0
@@ -405,17 +433,22 @@ string function GetNameByAreaId(string area_id)
 
   string mod_name = StringUtil.substring(area_id, 4, sep_idx - 4)
   int form_id = StringUtil.substring(area_id, sep_idx + 1) as int
+  return Game.GetFormFromFile(form_id, mod_name) as Cell
+endfunction
 
-  Cell tcell = Game.GetFormFromFile(form_id, mod_name) as Cell
 
+; area_id: SSE_xxx.esm:id
+; return name or ""
+string function GetCellName(Cell tcell)
   if tcell
-    string name = tcell.GetName()
-    if name != ""
-      return name
+    Location[] locs = SPE_Cell.GetExteriorLocations(tcell)
+    if locs.length > 0
+      return locs[0].GetName()
+    else
+      return tcell.GetName()
     endif
-  else
-    return ""
   endif
+  return ""
 endfunction
 
 Event OnRequestSuccess(Int aiHandle, String asResponse)
@@ -436,7 +469,7 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
 
     LatestMsgId = id
     StorageUtil.SetIntValue(self as Form, "msg_pri_id_" + id, pri_id)
-    PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level)
+    PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level, SendMsgAreaId)
   endif
 EndEvent
 

@@ -14,14 +14,16 @@ string msg_type
 string msg_val
 bool activated = false ; cannot activate again
 bool liked = false
+string area_id
 
-function SetMsgData(int _id, string _sender, string _msg, string _msg_type, string _msg_val, int _like_level = 0)
+function SetMsgData(int _id, string _sender, string _msg, string _msg_type, string _msg_val, int _like_level, string _area_id)
   msg_id = _id
   msg = _msg
   msg_type = _msg_type
   msg_val = _msg_val
   sender = _sender
   activated = Util.IsActivatedMsg(msg_id)
+  area_id = _area_id
 
   self.SetDisplayName("From: " + sender + "(" + _like_level + ")", true)
 endfunction
@@ -72,17 +74,10 @@ Event OnActivate(ObjectReference akActionRef)
   endif
 endEvent
 
-; Event OnUnload()
-;   if msg_id > 0
-;     StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
-;     self.Disable()
-;     self.Delete()
-;   endif
-; EndEvent
-
 Event OnCellUnload()
   if msg_id > 0
     StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+    Util.ResetCellTotalMsgs(area_id)
   endif
   self.Disable()
   self.Delete()
@@ -91,6 +86,7 @@ EndEvent
 Event OnCellDetach()
   if msg_id > 0
     StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+    Util.ResetCellTotalMsgs(area_id)
   endif
   self.Disable()
   self.Delete()
