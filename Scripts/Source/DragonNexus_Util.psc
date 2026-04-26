@@ -1,8 +1,6 @@
 
 Scriptname DragonNexus_Util extends Quest
 
-import MiscUtil
-
 Spell Property NewMsgSpell auto
 Form Property MsgActivator auto
 Form Property MyMsgActivator auto
@@ -49,20 +47,33 @@ Event OnInit()
 
   PlayerEnterGame()
 
-  RegisterForSingleUpdate(1.)
+  RegisterForSingleUpdate(1.5)
 endEvent
 
 Event OnUpdate()
+  RegisterForSingleUpdate(1.5)
   Cell current_cell = Player.GetParentCell()
   if current_cell == LastCell
     return
   endif
   LastCell = current_cell
-  RegisterForSingleUpdate(1.)
+  Log(LastCell + ", Name: " + GetCellName(LastCell))
 
   Cell[] AttachedCells = PO3_SKSEFunctions.GetAttachedCells()
   LoadCellsMsgs(AttachedCells)
 EndEvent
+
+function OnHitPlayer()
+  float hp = Game.GetPlayer().GetAV("Health")
+  if HealthRestored
+    if hp <= DeathMsgHealth && CanSendMsg(false)
+      HealthRestored = false
+      SendDeathMsg()
+    endif
+  elseif hp >= 100
+    HealthRestored = true
+  endif
+endfunction
 
 string function GetConfString(string key, string default)
   return JsonUtil.GetPathStringValue(ConfFile, key, default)
@@ -78,18 +89,6 @@ endfunction
 
 bool function GetConfBool(string key, bool default)
   return JsonUtil.GetPathBoolValue(ConfFile, key, default)
-endfunction
-
-function OnHitPlayer()
-  float hp = Game.GetPlayer().GetAV("Health")
-  if HealthRestored
-    if hp <= DeathMsgHealth && CanSendMsg(false)
-      HealthRestored = false
-      SendDeathMsg()
-    endif
-  elseif hp >= 100
-    HealthRestored = true
-  endif
 endfunction
 
 function PlayerEnterGame()
@@ -287,7 +286,6 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   keys[9] = "duration"
 
   Cell tcell = Player.GetParentCell()
-  Log("Cell Name: " + GetCellName(tcell))
   SendMsgAreaId = CalcCellID(tcell)
   vals[0] = "SSE_" + SendMsgAreaId
   vals[1] = PlayerName
@@ -424,13 +422,6 @@ Cell function GetCellByAreaId(string area_id)
     return
   endif
 
-  int i = 0
-  int sep_idx2 = StringUtil.find(area_id, ":", sep_idx + 1)
-  while i < 5 && sep_idx2 >= 0
-    sep_idx = sep_idx2
-    int sep_idx2 = StringUtil.find(area_id, ":", sep_idx + 1)
-  endwhile
-
   string mod_name = StringUtil.substring(area_id, 4, sep_idx - 4)
   int form_id = StringUtil.substring(area_id, sep_idx + 1) as int
   return Game.GetFormFromFile(form_id, mod_name) as Cell
@@ -441,6 +432,7 @@ endfunction
 ; return name or ""
 string function GetCellName(Cell tcell)
   if tcell
+    ; TODO cell->GetLocation
     Location[] locs = SPE_Cell.GetExteriorLocations(tcell)
     if locs.length > 0
       return locs[0].GetName()

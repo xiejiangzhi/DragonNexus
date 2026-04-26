@@ -32,13 +32,15 @@ function StartLoadCellsMsgs(Cell[] tcells)
   int i = 0
   while i < tcells.length
     Cell tcell = tcells[i]
-    string area_id = "SSE_" + Util.CalcCellID(tcell)
-    if tcell.IsAttached() && Util.GetCellTotalMsgs(area_id) < MaxCellMsg
-      StorageUtil.SetFormValue(self as Form, area_id, tcell)
-      if area_ids == ""
-        area_ids = area_id
-      else
-        area_ids = area_ids + "," + area_id
+    if tcell.IsAttached()
+      string area_id = "SSE_" + Util.CalcCellID(tcell)
+      if Util.GetCellTotalMsgs(area_id) < MaxCellMsg
+        StorageUtil.SetFormValue(self as Form, area_id, tcell)
+        if area_ids == ""
+          area_ids = area_id
+        else
+          area_ids = area_ids + "," + area_id
+        endif
       endif
     endif
     i += 1
@@ -102,8 +104,6 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
           int like_level = HTTPUtils.GetJSONInt(aiHandle, "/msgs/" + i + "/like_level")
           Util.PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level, area_id)
           Utility.Wait(0.1)
-        else
-          Utility.Wait(0.01)
         endif
       endif
       i += 1
