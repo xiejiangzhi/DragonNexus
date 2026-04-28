@@ -18,9 +18,6 @@ int duration = 0
 string next_menu = ""
 
 Event OnEffectStart(Actor akTarget, Actor akCaster)
-  if !Util.CanSendMsg(true)
-    return
-  endif
   msg = Util.GetDefaultMsg()
 
   next_menu = "root"
@@ -50,7 +47,11 @@ function ShowRootMenu()
   int ret = RootMenu.Show()
   if ret == 0
     ; input
-    next_menu = "new_msg"
+    if Util.CanSendMsg(true)
+      next_menu = "new_msg"
+    else
+      return
+    endif
   elseif ret == 1
     ; view status & take reward
     Util.ViewUserInfo()
