@@ -8,6 +8,7 @@ Message Property MsgTypeMonsterMenu auto
 Message Property MsgTypeItemMenu auto
 Message Property MsgTypeMiscMenu auto
 Message Property MsgDurationMenu auto
+Message Property RootMenu auto
 
 string msg = "I was here."
 string msg_type = "plain"
@@ -22,29 +23,41 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
   endif
   msg = Util.GetDefaultMsg()
 
-  next_menu = "new_msg"
+  next_menu = "root"
+  string mval
   while next_menu != ""
-    if next_menu == "new_msg"
-      next_menu = ""
+    mval = next_menu
+    next_menu = ""
+    if mval == "root"
+      ShowRootMenu()
+    elseif mval == "new_msg"
       ShowMsgMenu()
-    elseif next_menu == "msg_type"
-      next_menu = ""
+    elseif mval == "msg_type"
       ShowMsgTypeMenu()
-    elseif next_menu == "type_monster"
-      next_menu = ""
+    elseif mval == "type_monster"
       ShowMsgTypeMonsterMenu()
-    elseif next_menu == "type_item"
-      next_menu = ""
+    elseif mval == "type_item"
       ShowMsgTypeItemMenu()
-    elseif next_menu == "type_misc"
-      next_menu = ""
+    elseif mval == "type_misc"
       ShowMsgTypeMiscMenu()
-    elseif next_menu == "msg_duration"
-      next_menu = ""
+    elseif mval == "msg_duration"
       ShowMsgDurationMenu()
     endif
   endwhile
 endEvent
+
+function ShowRootMenu()
+  int ret = RootMenu.Show()
+  if ret == 0
+    ; input
+    next_menu = "new_msg"
+  elseif ret == 1
+    ; view status & take reward
+    Util.ViewUserInfo()
+  elseif ret == 2
+    ; cancel
+  endif
+endfunction
 
 function ShowMsgMenu()
   int ret = NewMsgMenu.Show()

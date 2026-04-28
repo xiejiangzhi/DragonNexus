@@ -66,10 +66,12 @@ endfunction
 ; return http_handle
 int function PullMsgs(string area_ids)
   string url = Util.MsgHost + "/msg/list"
-  string[] keys = new string[1]
+  string[] keys = new string[2]
   keys[0] = "area_ids"
-  string[] vals = new string[1]
+  keys[1] = "token"
+  string[] vals = new string[2]
   vals[0] = area_ids
+  vals[1] = Util.PlayerToken
   Util.Log("HTTP pull msgs " + url + " | area_ids: " + area_ids + ", time: " + Utility.GetCurrentRealTime())
   int handle = HTTPUtils.RequestJSON_GET(self, url, 4500, keys, vals, EmptyStrList, EmptyStrList)
   return handle

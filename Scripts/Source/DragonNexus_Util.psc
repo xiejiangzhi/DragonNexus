@@ -9,6 +9,7 @@ DragonNexus_LoadThread[] Property Threads auto
 
 string Property MsgHost auto
 int Property MaxCellMsg auto
+string Property PlayerToken auto
 
 string ConfFile = "../DragonNexus.json"
 string UserConfFile = "../DragonNexus.User.json"
@@ -19,10 +20,14 @@ String PlayerName = "None"
 
 Cell LastCell = None
 
+string[] EmptyStringArray
 string[] MsgHeaderKeys
 string[] MsgHeaderVals
 int SendMsgHandle
 string SendMsgAreaId
+int SigninHandle
+int UserStatusHandle
+int LastUserLikeCount
 
 float LastResetActivatorAt = 0.
 float LastClearBlockedMsgAt = 0.
@@ -137,6 +142,8 @@ function PlayerEnterGame()
 
   ; server pri_id maybe expired, clear it to avoid get invalid pri_id
   StorageUtil.ClearObjIntValuePrefix(self as Form, "msg_pri_id_")
+
+  Signin()
 endfunction
 
 ; Deprecated
@@ -186,13 +193,13 @@ bool function IsActivatedMsg(int id)
 endfunction
 
 function LikeMsg(int id)
-  string url = MsgHost + "/msg/like?msg_id=" + id
+  string url = MsgHost + "/msg/like?msg_id=" + id + "&token=" + PlayerToken
   HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 function DislikeMsg(int id)
   StorageUtil.SetIntValue(self as Form, "blocked_msg_" + id, 1)
-  string url = MsgHost + "/msg/dislike?msg_id=" + id
+  string url = MsgHost + "/msg/dislike?msg_id=" + id + "&token=" + PlayerToken
   HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
@@ -201,6 +208,7 @@ bool function CanPlaceMsg(int id)
 endfunction
 
 DragonNexus_LoadThread function TakeThread()
+  ; new logic use one thread, old logic has 3 threads
   int i = 0
   while i <= Threads.Length
     DragonNexus_LoadThread t = Threads[i]
@@ -242,6 +250,29 @@ ObjectReference function PlaceMsg(int id, string sender, string msg, string msg_
   return obj
 endfunction
 
+function Signin()
+  string url = MsgHost + "/user/signin?token=" + PlayerToken
+  SigninHandle = HTTPUtils.RequestJSON_POST(self, url, 5000, "", MsgHeaderKeys, MsgHeaderVals)
+endfunction
+
+function ViewUserInfo()
+  if PlayerToken == ""
+    return
+  endif
+  string url = MsgHost + "/user/info?token=" + PlayerToken
+  UserStatusHandle = HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStringArray, EmptyStringArray, MsgHeaderKeys, MsgHeaderVals)
+endfunction
+
+function GiveGold(int total)
+  Form gold = Game.GetForm(0xf) ; coin
+  Player.AddItem(gold, total)
+endfunction
+
+function TakeGold(int total)
+  Form gold = Game.GetForm(0xf) ; coin
+  Player.RemoveItem(gold, total)
+endfunction
+
 bool function CanSendMsg(bool show_msg = false)
   float time = Utility.GetCurrentRealTime()
   if time < (LastSendMsgTime + SendMsgCooldown)
@@ -272,8 +303,8 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
     return
   endif
 
-  string[] keys = new string[10]
-  string[] vals = new string[10]
+  string[] keys = new string[11]
+  string[] vals = new string[11]
   keys[0] = "area_id"
   keys[1] = "player"
   keys[2] = "msg"
@@ -284,6 +315,7 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   keys[7] = "z"
   keys[8] = "angle"
   keys[9] = "duration"
+  keys[10] = "token"
 
   Cell tcell = Player.GetParentCell()
   SendMsgAreaId = CalcCellID(tcell)
@@ -297,11 +329,12 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   vals[7] = Player.z as string
   vals[8] = Player.GetAngleZ() as string
   vals[9] = duration as string
+  vals[10] = PlayerToken
 
   Debug.Notification("[DragonNexus] Sending message...")
   string url = MsgHost + "/msg/add"
   string body = HTTPUtils.FormatJSON(keys, vals, true)
-  SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 3000, body, MsgHeaderKeys, MsgHeaderVals)
+  SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 5000, body, MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 function SendDeathMsg()
@@ -318,7 +351,7 @@ endfunction
 function DelMsg(int msg_id)
   int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
   if pri_id >= 0
-    string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&pri_id=" + pri_id
+    string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&pri_id=" + pri_id + "&token=" + PlayerToken
     HTTPUtils.RequestJSON_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
   endif
 endfunction
@@ -462,13 +495,36 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     LatestMsgId = id
     StorageUtil.SetIntValue(self as Form, "msg_pri_id_" + id, pri_id)
     PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level, SendMsgAreaId)
+    SendMsgHandle = 0
+  elseif aiHandle == SigninHandle
+    PlayerToken = HTTPUtils.GetJSONString(aiHandle, "/token")
+    Log("Successfully signin. token: " + PlayerToken)
+    SigninHandle  = 0
+  elseif aiHandle == UserStatusHandle
+    int like_count = HTTPUtils.GetJSONInt(aiHandle, "/like_count")
+    int new_like_count = like_count - LastUserLikeCount
+    LastUserLikeCount = like_count
+    if new_like_count > 0
+      GiveGold(new_like_count * 8)
+    endif
+    Debug.Notification(like_count + " Likes received, +" + new_like_count + " new.")
+    UserStatusHandle = 0
   endif
+  HTTPUtils.Destroy(aiHandle)
 EndEvent
 
 Event OnRequestFail(Int aiHandle, Int aiStatusCode)
   if aiHandle == SendMsgHandle
-    Debug.Notification("[DragonNexus] Failed to send message")
+    Log("Failed to send message")
+    SendMsgHandle = 0
+  elseif aiHandle == SigninHandle
+    Log("Failed to sign in")
+    SigninHandle = 0
+  elseif aiHandle == UserStatusHandle
+    Log("Failed to get user info")
+    UserStatusHandle = 0
   else
     Log("Failed to send HTTP request")
   endif
+  HTTPUtils.Destroy(aiHandle)
 EndEvent

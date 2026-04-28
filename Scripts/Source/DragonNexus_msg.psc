@@ -59,6 +59,7 @@ Event OnActivate(ObjectReference akActionRef)
         endif
       elseif ret == 1
         Util.LikeMsg(msg_id)
+        Util.TakeGold(10)
         liked = true
       elseif ret == 2
         Util.DislikeMsg(msg_id)
