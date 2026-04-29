@@ -344,14 +344,12 @@ function SendDeathMsg()
 endfunction
 
 bool function CanDelMsg(int msg_id)
-  int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
-  return pri_id >= 0
+  return StorageUtil.IntListHas(self as Form, "my_msg_ids", msg_id)
 endfunction
 
 function DelMsg(int msg_id)
-  int pri_id = StorageUtil.GetIntValue(self as Form, "msg_pri_id_" + msg_id, -1)
-  if pri_id >= 0
-    string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&pri_id=" + pri_id + "&token=" + PlayerToken
+  if StorageUtil.IntListHas(self as Form, "my_msg_ids", msg_id)
+    string url = MsgHost + "/msg/del?msg_id=" + msg_id + "&token=" + PlayerToken
     HTTPUtils.RequestJSON_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
   endif
 endfunction
@@ -490,10 +488,9 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     float z = HTTPUtils.GetJSONFloat(aiHandle, "/z")
     float angle = HTTPUtils.GetJSONFloat(aiHandle, "/angle")
     int like_level = HTTPUtils.GetJSONInt(aiHandle, "/like_level")
-    int pri_id = HTTPUtils.GetJSONInt(aiHandle, "/pri_id")
 
     LatestMsgId = id
-    StorageUtil.SetIntValue(self as Form, "msg_pri_id_" + id, pri_id)
+    StorageUtil.IntListAdd(self as Form, "my_msg_ids", id)
     PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level, SendMsgAreaId)
     SendMsgHandle = 0
   elseif aiHandle == SigninHandle
@@ -507,7 +504,7 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     if new_like_count > 0
       GiveGold(new_like_count * 8)
     endif
-    Debug.Notification(like_count + " Likes received, +" + new_like_count + " new.")
+    Debug.Notification(like_count + " likes received, +" + new_like_count + " new.")
     UserStatusHandle = 0
   endif
   HTTPUtils.Destroy(aiHandle)

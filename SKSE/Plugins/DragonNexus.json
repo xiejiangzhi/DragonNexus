@@ -1,6 +1,6 @@
 {
-  // "Host": "https://skyrimmsg.xjz.pw",
-  "Host": "http://127.0.0.1:3000",
+  "Host": "https://skyrimmsg.xjz.pw",
+  // "Host": "http://127.0.0.1:3000",
   "MaxCellMsg": 32,
   "ResetActivatorHour": 24,
   "ClearBlockedMsgHour": 168,
