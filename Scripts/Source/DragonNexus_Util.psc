@@ -6,6 +6,7 @@ Form Property MsgActivator auto
 Form Property MyMsgActivator auto
 Form Property DeathMsgActivator auto
 DragonNexus_LoadThread[] Property Threads auto
+Message Property UserInfoMsg auto
 
 string Property MsgHost auto
 int Property MaxCellMsg auto
@@ -26,8 +27,9 @@ string[] MsgHeaderVals
 int SendMsgHandle
 string SendMsgAreaId
 int SigninHandle
-int UserStatusHandle
+int UserInfoHandle
 int LastUserLikeCount
+bool DisplayMessageInPopup = false
 
 float LastResetActivatorAt = 0.
 float LastClearBlockedMsgAt = 0.
@@ -64,7 +66,9 @@ Event OnUpdate()
   LastCell = current_cell
   Log(LastCell + ", Name: " + GetCellName(LastCell))
 
-  Cell[] AttachedCells = PO3_SKSEFunctions.GetAttachedCells()
+  ; Cell[] AttachedCells = PO3_SKSEFunctions.GetAttachedCells()
+  Cell[] AttachedCells = new Cell[1]
+  AttachedCells[0] = current_cell
   LoadCellsMsgs(AttachedCells)
 EndEvent
 
@@ -75,7 +79,7 @@ function OnHitPlayer()
       HealthRestored = false
       SendDeathMsg()
     endif
-  elseif hp >= 100
+  elseif hp >= 80.
     HealthRestored = true
   endif
 endfunction
@@ -120,6 +124,8 @@ function PlayerEnterGame()
   DisableNotifyLatestMsg = GetConfBool("DisableNotifyLatestMsg", false)
   NotifyLatestMsgInterval = GetConfFloat("NotifyLatestMsgInterval", 30.)
 
+  DisplayMessageInPopup = GetConfBool("DisplayMessageInPopup", false)
+
   PlayerName = GetConfString("PlayerName", "")
   if PlayerName == ""
     PlayerName = Player.GetLeveledActorBase().GetName()
@@ -143,29 +149,13 @@ function PlayerEnterGame()
   ; server pri_id maybe expired, clear it to avoid get invalid pri_id
   StorageUtil.ClearObjIntValuePrefix(self as Form, "msg_pri_id_")
 
+  ; for old version
+  if !UserInfoMsg
+    UserInfoMsg = Game.GetFormFromFile(0x016, "DragonNexus.esp") as Message
+  endif
+
   Signin()
 endfunction
-
-; Deprecated
-; function LoadCellMsgs(Cell tcell)
-;   string area_id = CalcCellID(tcell)
-;   if !tcell.IsAttached() || GetCellTotalMsgs(area_id) >= MaxCellMsg
-;     Log("Skip load cell msg " + tcell)
-;     return
-;   endif
-
-;   ; take a thread
-;   DragonNexus_LoadThread thread = TakeThread()
-;   while !thread && tcell.IsAttached()
-;     thread = TakeThread()
-;     Utility.wait(0.5)
-;   endwhile
-
-;   if thread
-;     Log("Start load cell msg: " + tcell)
-;     thread.StartLoadCellMsgs(tcell)
-;   endif
-; endfunction
 
 function LoadCellsMsgs(Cell[] tcells)
   ; take a thread
@@ -186,6 +176,14 @@ endfunction
 
 function ActivateMsg(int id)
   StorageUtil.SetIntValue(self as Form, "act_msg_" + id, 1)
+endfunction
+
+function ShowMsg(string sender, string msg)
+  if DisplayMessageInPopup
+    Debug.MessageBox(sender + ": " + msg)
+  else
+    Debug.Notification(sender + ": " + msg)
+  endif
 endfunction
 
 bool function IsActivatedMsg(int id)
@@ -260,7 +258,7 @@ function ViewUserInfo()
     return
   endif
   string url = MsgHost + "/user/info?token=" + PlayerToken
-  UserStatusHandle = HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStringArray, EmptyStringArray, MsgHeaderKeys, MsgHeaderVals)
+  UserInfoHandle = HTTPUtils.RequestJSON_GET(self, url, 5000, EmptyStringArray, EmptyStringArray, MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 function GiveGold(int total)
@@ -458,18 +456,12 @@ Cell function GetCellByAreaId(string area_id)
   return Game.GetFormFromFile(form_id, mod_name) as Cell
 endfunction
 
-
 ; area_id: SSE_xxx.esm:id
 ; return name or ""
 string function GetCellName(Cell tcell)
   if tcell
     ; TODO cell->GetLocation
-    Location[] locs = SPE_Cell.GetExteriorLocations(tcell)
-    if locs.length > 0
-      return locs[0].GetName()
-    else
-      return tcell.GetName()
-    endif
+    return tcell.GetName()
   endif
   return ""
 endfunction
@@ -497,15 +489,16 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
     PlayerToken = HTTPUtils.GetJSONString(aiHandle, "/token")
     Log("Successfully signin. token: " + PlayerToken)
     SigninHandle  = 0
-  elseif aiHandle == UserStatusHandle
+  elseif aiHandle == UserInfoHandle
     int like_count = HTTPUtils.GetJSONInt(aiHandle, "/like_count")
+    int msg_count = HTTPUtils.GetJSONInt(aiHandle, "/msg_count")
     int new_like_count = like_count - LastUserLikeCount
     LastUserLikeCount = like_count
     if new_like_count > 0
       GiveGold(new_like_count * 8)
     endif
-    Debug.Notification(like_count + " likes received, +" + new_like_count + " new.")
-    UserStatusHandle = 0
+    UserInfoMsg.Show(msg_count, like_count, new_like_count)
+    UserInfoHandle = 0
   endif
   HTTPUtils.Destroy(aiHandle)
 EndEvent
@@ -517,9 +510,11 @@ Event OnRequestFail(Int aiHandle, Int aiStatusCode)
   elseif aiHandle == SigninHandle
     Log("Failed to sign in")
     SigninHandle = 0
-  elseif aiHandle == UserStatusHandle
+    Debug.Notification("[DragonNexus] Failed to signin.")
+  elseif aiHandle == UserInfoHandle
     Log("Failed to get user info")
-    UserStatusHandle = 0
+    UserInfoHandle = 0
+    Debug.Notification("[DragonNexus] Failed to get user info.")
   else
     Log("Failed to send HTTP request")
   endif

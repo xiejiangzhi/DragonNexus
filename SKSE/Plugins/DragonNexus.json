@@ -1,17 +1,23 @@
 {
-  "Host": "https://skyrimmsg.xjz.pw",
-  // "Host": "http://127.0.0.1:3000",
+  // "Host": "https://skyrimmsg.xjz.pw",
+  "Host": "http://127.0.0.1:3000",
+
   "MaxCellMsg": 32,
   "ResetActivatorHour": 24,
   "ClearBlockedMsgHour": 168,
 
+  // Place a death message when your health drops below this value
   "DeathMsgHealth": 1.0,
   "DeathMsg": "I just took an arrow in the knee...",
 
   "DisableNotifyLatestMsg": false,
   "NotifyLatestMsgInterval": 30,
 
+  // Leave empty ("") to automatically use the character name
   "PlayerName": "Traveler",
 
-  "DefaultMsg": "I was here."
+  "DefaultMsg": "I was here.",
+
+  // Use Message Box or Notification to display message
+  "DisplayMessageInPopup": false
 }

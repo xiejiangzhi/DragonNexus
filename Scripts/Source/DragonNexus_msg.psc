@@ -15,6 +15,7 @@ string msg_val
 bool activated = false ; cannot activate again
 bool liked = false
 string area_id
+int like_level = 0
 
 function SetMsgData(int _id, string _sender, string _msg, string _msg_type, string _msg_val, int _like_level, string _area_id)
   msg_id = _id
@@ -24,9 +25,15 @@ function SetMsgData(int _id, string _sender, string _msg, string _msg_type, stri
   sender = _sender
   activated = Util.IsActivatedMsg(msg_id)
   area_id = _area_id
-
-  self.SetDisplayName("From: " + sender + "(" + _like_level + ")", true)
+  like_level = _like_level
+  self.SetDisplayName("From: " + sender + "(" + like_level + ")", true)
 endfunction
+
+Event OnLoad()
+  if sender
+    self.SetDisplayName("From: " + sender + "(" + like_level + ")", true)
+  endif
+EndEvent
 
 Event OnActivate(ObjectReference akActionRef)
   Actor player = Game.GetPlayer()
@@ -34,7 +41,7 @@ Event OnActivate(ObjectReference akActionRef)
     return
   endif
 
-  Debug.Notification(sender + ": " + msg)
+  Util.ShowMsg(sender, msg)
 
   if liked && activated
     return
@@ -61,6 +68,8 @@ Event OnActivate(ObjectReference akActionRef)
         Util.LikeMsg(msg_id)
         Util.TakeGold(10)
         liked = true
+        like_level += 1
+        self.SetDisplayName("From: " + sender + "(" + like_level + ")", true)
       elseif ret == 2
         Util.DislikeMsg(msg_id)
         self.Disable()
