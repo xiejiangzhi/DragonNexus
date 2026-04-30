@@ -6,6 +6,7 @@ Message Property MsgMenu auto
 Message Property MyMsgMenu auto
 FormList Property Monsters auto
 FormList Property Items auto
+FormList Property Spells auto
 
 int msg_id = -1
 string sender
@@ -116,13 +117,16 @@ function ApplyMsgAction()
       player.AddItem(item, 1)
     endif
   elseif msg_type == "misc"
-    if msg_val == "0" ; restore
-      player.RestoreActorValue("Health", 99999.)
-      player.RestoreActorValue("Magicka", 99999.)
-      player.RestoreActorValue("Stamina", 99999.)
-    elseif msg_val == "1" ; steal_coin
+    if msg_val == "0"; push
+      player.PushActorAway(player, 1.5 + Utility.RandomFloat() * 2.5)
+    elseif msg_val == "1" ; steal coin
       Form coin = Game.GetForm(0xf)
-      player.RemoveItem(coin, 10 + Utility.RandomInt(10, 50))
+      player.RemoveItem(coin, 10 + Utility.RandomInt(10, 40))
+    endif
+  elseif msg_type == "spell"
+    Spell sp = Spells.GetAt(msg_val as int) as Spell
+    if sp
+      sp.Cast(player)
     endif
   endif
 endfunction

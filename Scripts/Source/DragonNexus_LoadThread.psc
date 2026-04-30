@@ -85,6 +85,7 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
       total = MaxApiMsgs
     endif
     int i = 0
+    int wait_counter = 0
     while i < total && aiHandle == GetMsgHandle
       int id = HTTPUtils.GetJSONInt(aiHandle, "/msgs/" + i + "/id")
       if Util.CanPlaceMsg(id)
@@ -105,10 +106,14 @@ Event OnRequestSuccess(Int aiHandle, String asResponse)
           float angle = HTTPUtils.GetJSONFloat(aiHandle, "/msgs/" + i + "/angle")
           int like_level = HTTPUtils.GetJSONInt(aiHandle, "/msgs/" + i + "/like_level")
           Util.PlaceMsg(id, sender, msg, msg_type, msg_val, x, y, z, angle, like_level, area_id)
-          Utility.Wait(0.1)
+          wait_counter += 1
         endif
       endif
       i += 1
+      if wait_counter >= 10
+        wait_counter = 0
+        Utility.Wait(0.1)
+      endif
     endwhile
 
     int last_msg_id = HTTPUtils.GetJSONInt(aiHandle, "/last_msg/id", 0)

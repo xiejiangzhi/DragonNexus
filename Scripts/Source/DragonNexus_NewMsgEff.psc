@@ -9,6 +9,7 @@ Message Property MsgTypeItemMenu auto
 Message Property MsgTypeMiscMenu auto
 Message Property MsgDurationMenu auto
 Message Property RootMenu auto
+Message Property MsgTypeSpellMenu auto
 
 string msg = "I was here."
 string msg_type = "plain"
@@ -33,6 +34,8 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
       ShowMsgTypeMenu()
     elseif mval == "type_monster"
       ShowMsgTypeMonsterMenu()
+    elseif mval == "type_spell"
+      ShowMsgTypeSpellMenu()
     elseif mval == "type_item"
       ShowMsgTypeItemMenu()
     elseif mval == "type_misc"
@@ -110,6 +113,15 @@ function ShowMsgTypeMenu()
       next_menu = "msg_type"
     endif
   elseif ret == 3
+    Form gem = Game.GetForm(0x2E4F3)
+    if Game.GetPlayer().GetItemCount(gem) >= 1
+      msg_type = "spell"
+      next_menu = "type_spell"
+    else
+      Debug.Notification("Not enough " + gem.GetName())
+      next_menu = "msg_type"
+    endif
+  elseif ret == 4
     Form coin = Game.GetForm(0xf)
     if Game.GetPlayer().GetItemCount(coin) >= 500
       msg_type = "misc"
@@ -132,6 +144,12 @@ function ShowMsgTypeItemMenu()
   msg_val = MsgTypeItemMenu.Show() as string
   next_menu = "new_msg"
 endfunction
+
+function ShowMsgTypeSpellMenu()
+  msg_val = MsgTypeSpellMenu.Show() as string
+  next_menu = "new_msg"
+endfunction
+
 
 function ShowMsgTypeMiscMenu()
   msg_val = MsgTypeMiscMenu.Show() as string

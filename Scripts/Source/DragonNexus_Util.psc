@@ -47,6 +47,7 @@ float LastNotifyLatestMsgTime = 0.
 bool DisableNotifyLatestMsg = false
 
 string DefaultMsg = "I was here."
+Form GoldCoin
 
 Event OnInit()
   Player = Game.GetPlayer()
@@ -103,6 +104,7 @@ endfunction
 function PlayerEnterGame()
   LastCell = None
   LastSendMsgTime = -1000.
+  GoldCoin = Game.GetForm(0xf)
 
   if JsonUtil.JsonExists(UserConfFile) && JsonUtil.IsGood(UserConfFile)
     ConfFile = UserConfFile
@@ -116,6 +118,9 @@ function PlayerEnterGame()
   MaxCellMsg = GetConfInt("MaxCellMsg", 32)
 
   DeathMsgHealth = GetConfFloat("DeathMsgHealth", 1.)
+  if DeathMsgHealth > 20.
+    DeathMsgHealth = 20.
+  endif
   DeathMsg = GetConfString("DeathMsg", "I just took an arrow in the knee...")
 
   DefaultMsg = GetConfString("DefaultMsg", "I was here.")
@@ -262,13 +267,11 @@ function ViewUserInfo()
 endfunction
 
 function GiveGold(int total)
-  Form gold = Game.GetForm(0xf) ; coin
-  Player.AddItem(gold, total)
+  Player.AddItem(GoldCoin, total)
 endfunction
 
 function TakeGold(int total)
-  Form gold = Game.GetForm(0xf) ; coin
-  Player.RemoveItem(gold, total)
+  Player.RemoveItem(GoldCoin, total)
 endfunction
 
 bool function CanSendMsg(bool show_msg = false)
@@ -372,10 +375,13 @@ bool function ApplyMsgCost(string msg_type, string msg_val, int duration)
     item1 = Game.GetForm(0x2E4F3) ; soul gem
     item1_cost = 1
   elseif msg_type == "item"
-    item1 = Game.GetForm(0xf) ; coin
+    item1 = GoldCoin
     item1_cost = 300
+  elseif msg_type == "spell"
+    item1 = Game.GetForm(0x2E4F3) ; soul gem
+    item1_cost = 1
   elseif msg_type == "misc"
-    item1 = Game.GetForm(0xf) ; coin
+    item1 = GoldCoin
     item1_cost = 500
   endif
   if item1 && Player.GetItemCount(item1) < item1_cost
