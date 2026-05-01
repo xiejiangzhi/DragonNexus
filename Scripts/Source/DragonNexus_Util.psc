@@ -12,6 +12,11 @@ string Property MsgHost auto
 int Property MaxCellMsg auto
 string Property PlayerToken auto
 
+bool Property DisableMessageMonster auto
+bool Property DisableMessageItem auto
+bool Property DisableMessageSpell auto
+bool Property DisableMessageMisc auto
+
 string ConfFile = "../DragonNexus.json"
 string UserConfFile = "../DragonNexus.User.json"
 string DefaultConfFile = "../DragonNexus.json"
@@ -150,6 +155,11 @@ function PlayerEnterGame()
     LastClearBlockedMsgAt = days
     Log("Clear blocked messages")
   endif
+
+  DisableMessageMonster = GetConfBool("DisableMessageMonster", false)
+  DisableMessageItem = GetConfBool("DisableMessageItem", false)
+  DisableMessageSpell = GetConfBool("DisableMessageSpell", false)
+  DisableMessageMisc = GetConfBool("DisableMessageMisc", false)
 
   ; server pri_id maybe expired, clear it to avoid get invalid pri_id
   StorageUtil.ClearObjIntValuePrefix(self as Form, "msg_pri_id_")

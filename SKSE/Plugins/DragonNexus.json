@@ -19,5 +19,11 @@
   "DefaultMsg": "I was here.",
 
   // Use Message Box or Notification to display message
-  "DisplayMessageInPopup": false
+  "DisplayMessageInPopup": false,
+
+  // Reading does not trigger disabled effects.
+  "DisableMessageMonster": false,
+  "DisableMessageItem": false,
+  "DisableMessageSpell": false,
+  "DisableMessageMisc": false
 }

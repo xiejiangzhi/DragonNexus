@@ -107,26 +107,34 @@ function ApplyMsgAction()
   Actor player = Game.GetPlayer()
 
   if msg_type == "monster"
-    Form monster = Monsters.GetAt(msg_val as int)
-    if monster
-      self.PlaceAtMe(monster)
+    if Util.DisableMessageMonster
+      Form monster = Monsters.GetAt(msg_val as int)
+      if monster
+        self.PlaceAtMe(monster)
+      endif
     endif
   elseif msg_type == "item"
-    Form item = Items.GetAt(msg_val as int)
-    if item
-      player.AddItem(item, 1)
-    endif
-  elseif msg_type == "misc"
-    if msg_val == "0"; push
-      player.PushActorAway(player, 1.5 + Utility.RandomFloat() * 2.5)
-    elseif msg_val == "1" ; steal coin
-      Form coin = Game.GetForm(0xf)
-      player.RemoveItem(coin, 10 + Utility.RandomInt(10, 40))
+    if Util.DisableMessageItem
+      Form item = Items.GetAt(msg_val as int)
+      if item
+        player.AddItem(item, 1)
+      endif
     endif
   elseif msg_type == "spell"
-    Spell sp = Spells.GetAt(msg_val as int) as Spell
-    if sp
-      sp.Cast(player)
+    if !Util.DisableMessageSpell
+      Spell sp = Spells.GetAt(msg_val as int) as Spell
+      if sp
+        sp.Cast(player)
+      endif
+    endif
+  elseif msg_type == "misc"
+    if !Util.DisableMessageMisc
+      if msg_val == "0"; push
+        player.PushActorAway(player, 1.5 + Utility.RandomFloat() * 2.5)
+      elseif msg_val == "1" ; steal coin
+        Form coin = Game.GetForm(0xf)
+        player.RemoveItem(coin, 10 + Utility.RandomInt(10, 40))
+      endif
     endif
   endif
 endfunction
