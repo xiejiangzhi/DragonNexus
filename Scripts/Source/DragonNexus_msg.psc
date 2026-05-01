@@ -107,14 +107,14 @@ function ApplyMsgAction()
   Actor player = Game.GetPlayer()
 
   if msg_type == "monster"
-    if Util.DisableMessageMonster
+    if !Util.DisableMessageMonster
       Form monster = Monsters.GetAt(msg_val as int)
       if monster
         self.PlaceAtMe(monster)
       endif
     endif
   elseif msg_type == "item"
-    if Util.DisableMessageItem
+    if !Util.DisableMessageItem
       Form item = Items.GetAt(msg_val as int)
       if item
         player.AddItem(item, 1)

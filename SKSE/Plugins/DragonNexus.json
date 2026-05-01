@@ -1,10 +1,10 @@
 {
-  // "Host": "https://skyrimmsg.xjz.pw",
-  "Host": "http://127.0.0.1:3000",
+  "Host": "https://skyrimmsg.xjz.pw",
+  // "Host": "http://127.0.0.1:3000",
 
   "MaxCellMsg": 32,
   "ResetActivatorHour": 24,
-  "ClearBlockedMsgHour": 168,
+  "ClearBlockedMsgHour": 720,
 
   // Place a death message when your health drops below this value
   "DeathMsgHealth": 1.0,
