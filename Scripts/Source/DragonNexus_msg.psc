@@ -130,7 +130,7 @@ function ApplyMsgAction()
   elseif msg_type == "misc"
     if !Util.DisableMessageMisc
       if msg_val == "0"; push
-        player.PushActorAway(player, 1.5 + Utility.RandomFloat() * 2.5)
+        self.PushActorAway(player, 1.4 + Utility.RandomFloat() * 2.0)
       elseif msg_val == "1" ; steal coin
         Form coin = Game.GetForm(0xf)
         player.RemoveItem(coin, 10 + Utility.RandomInt(10, 40))

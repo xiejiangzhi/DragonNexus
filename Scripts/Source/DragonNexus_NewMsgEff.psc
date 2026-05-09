@@ -40,8 +40,8 @@ Event OnEffectStart(Actor akTarget, Actor akCaster)
       ShowMsgTypeItemMenu()
     elseif mval == "type_misc"
       ShowMsgTypeMiscMenu()
-    elseif mval == "msg_duration"
-      ShowMsgDurationMenu()
+    ; elseif mval == "msg_duration"
+    ;   ShowMsgDurationMenu()
     endif
   endwhile
 endEvent
@@ -77,14 +77,12 @@ function ShowMsgMenu()
   elseif ret == 1
     next_menu = "msg_type"
   elseif ret == 2
-    next_menu = "msg_duration"
-  elseif ret == 3
     ; send
     if msg == ""
       return
     endif
     Util.SendMsg(msg, msg_type, msg_val, duration)
-  elseif ret == 4
+  elseif ret == 3
     ; cancel
   endif
 endfunction
