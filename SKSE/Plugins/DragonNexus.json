@@ -4,17 +4,18 @@
 
   "MaxCellMsg": 32,
   "ResetActivatorHour": 24,
-  "ClearBlockedMsgHour": 720,
 
   // Place a death message when your health drops below this value
   "DeathMsgHealth": 1.0,
-  "DeathMsg": "I just took an arrow in the knee...",
+  // Auto replace <DeathCount> to real death count
+  "DeathMsg": "<DeathCount>rd arrow to the knee.",
 
   "DisableNotifyLatestMsg": false,
   "NotifyLatestMsgInterval": 30,
 
   // Leave empty ("") to automatically use the character name
-  "PlayerName": "Traveler",
+  // Auto replace <RandNum> to a random number
+  "PlayerName": "Traveler<RandNum>",
 
   "DefaultMsg": "I was here.",
 

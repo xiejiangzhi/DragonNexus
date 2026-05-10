@@ -20,6 +20,7 @@ bool Property DisableMessageMisc auto
 string ConfFile = "../DragonNexus.json"
 string UserConfFile = "../DragonNexus.User.json"
 string DefaultConfFile = "../DragonNexus.json"
+string GUserData = "../DragonNexusUserData.json"
 
 Actor Player = None
 String PlayerName = "None"
@@ -37,7 +38,7 @@ int LastUserLikeCount
 bool DisplayMessageInPopup = false
 
 float LastResetActivatorAt = 0.
-float LastClearBlockedMsgAt = 0.
+float LastClearBlockedMsgAt = 0. ; Deprecated
 
 float LastSendMsgTime = -1000.
 float SendMsgCooldown = 60.
@@ -83,7 +84,9 @@ function OnHitPlayer()
   if HealthRestored
     if hp <= DeathMsgHealth && CanSendMsg(false)
       HealthRestored = false
-      SendDeathMsg()
+      int dcount = JsonUtil.AdjustIntValue(GUserData, "DeathCount", 1)
+      JsonUtil.Save(GUserData)
+      SendDeathMsg(dcount)
     endif
   elseif hp >= 80.
     HealthRestored = true
@@ -139,6 +142,8 @@ function PlayerEnterGame()
   PlayerName = GetConfString("PlayerName", "")
   if PlayerName == ""
     PlayerName = Player.GetLeveledActorBase().GetName()
+  else
+    PlayerName = ReaplceStringIntValue(PlayerName, "<RandNum>", Utility.RandomInt(1, 99999))
   endif
 
   float days = Utility.GetCurrentGameTime()
@@ -149,12 +154,7 @@ function PlayerEnterGame()
     Log("Reset activator")
   endif
 
-  float BlockedResetInterval = GetConfInt("ClearBlockedMsgHour", 168) / 24.
-  if days > (LastClearBlockedMsgAt + BlockedResetInterval)
-    StorageUtil.ClearObjIntValuePrefix(self as Form, "blocked_msg_")
-    LastClearBlockedMsgAt = days
-    Log("Clear blocked messages")
-  endif
+  StorageUtil.ClearObjIntValuePrefix(self as Form, "blocked_msg_")
 
   DisableMessageMonster = GetConfBool("DisableMessageMonster", false)
   DisableMessageItem = GetConfBool("DisableMessageItem", false)
@@ -211,13 +211,14 @@ function LikeMsg(int id)
 endfunction
 
 function DislikeMsg(int id)
-  StorageUtil.SetIntValue(self as Form, "blocked_msg_" + id, 1)
+  JsonUtil.SetIntValue(GUserData, "blocked_msg_" + id, 1)
   string url = MsgHost + "/msg/dislike?msg_id=" + id + "&token=" + PlayerToken
   HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
+  JsonUtil.Save(GUserData)
 endfunction
 
 bool function CanPlaceMsg(int id)
-  return !StorageUtil.HasIntValue(self as Form, "blocked_msg_" + id) && !StorageUtil.HasIntValue(self as Form, "msg_" + id)
+  return !JsonUtil.HasIntValue(GUserData, "blocked_msg_" + id) && !StorageUtil.HasIntValue(self as Form, "msg_" + id)
 endfunction
 
 DragonNexus_LoadThread function TakeThread()
@@ -348,9 +349,13 @@ function SendMsg(string msg, string msg_type, string msg_val, int duration = 0)
   SendMsgHandle = HTTPUtils.RequestJSON_POST(self, url, 5000, body, MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
-function SendDeathMsg()
+function SendDeathMsg(int death_count = 0)
   if DeathMsg != ""
-    SendMsg(DeathMsg, "death", "", 0)
+    if death_count <= 0
+      death_count = JsonUtil.GetIntValue(GUserData, "DeathCount", 1)
+    endif
+    string text = ReaplceStringIntValue(DeathMsg, "<DeathCount>", death_count)
+    SendMsg(text, "death", "", 0)
   endif
 endfunction
 
@@ -480,6 +485,16 @@ string function GetCellName(Cell tcell)
     return tcell.GetName()
   endif
   return ""
+endfunction
+
+string function ReaplceStringIntValue(string str, string key, int val)
+  int idx = StringUtil.find(str, key)
+  if idx < 0
+    return str
+  else
+    int len = StringUtil.GetLength(key)
+    return StringUtil.Substring(str, 0, idx) + val + StringUtil.substring(str, idx + len)
+  endif
 endfunction
 
 Event OnRequestSuccess(Int aiHandle, String asResponse)
