@@ -24,6 +24,7 @@ string GUserData = "../DragonNexusUserData.json"
 
 Actor Player = None
 String PlayerName = "None"
+Int PlayerRandNum = 0
 
 Cell LastCell = None
 
@@ -143,7 +144,10 @@ function PlayerEnterGame()
   if PlayerName == ""
     PlayerName = Player.GetLeveledActorBase().GetName()
   else
-    PlayerName = ReaplceStringIntValue(PlayerName, "<RandNum>", Utility.RandomInt(1, 99999))
+    if PlayerRandNum <= 0
+      PlayerRandNum = Utility.RandomInt(1, 99999)
+    endif
+    PlayerName = ReplaceStringIntValue(PlayerName, "<RandNum>", PlayerRandNum)
   endif
 
   float days = Utility.GetCurrentGameTime()
@@ -354,7 +358,7 @@ function SendDeathMsg(int death_count = 0)
     if death_count <= 0
       death_count = JsonUtil.GetIntValue(GUserData, "DeathCount", 1)
     endif
-    string text = ReaplceStringIntValue(DeathMsg, "<DeathCount>", death_count)
+    string text = ReplaceStringIntValue(DeathMsg, "<DeathCount>", death_count)
     SendMsg(text, "death", "", 0)
   endif
 endfunction
@@ -487,10 +491,13 @@ string function GetCellName(Cell tcell)
   return ""
 endfunction
 
-string function ReaplceStringIntValue(string str, string key, int val)
+string function ReplaceStringIntValue(string str, string key, int val)
   int idx = StringUtil.find(str, key)
   if idx < 0
     return str
+  elseif idx == 0
+    int len = StringUtil.GetLength(key)
+    return val + StringUtil.substring(str, idx + len)
   else
     int len = StringUtil.GetLength(key)
     return StringUtil.Substring(str, 0, idx) + val + StringUtil.substring(str, idx + len)
