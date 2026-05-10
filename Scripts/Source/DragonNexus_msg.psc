@@ -71,6 +71,11 @@ Event OnActivate(ObjectReference akActionRef)
           self.SetDisplayName("From: " + sender + "(" + like_level + ")", true)
         endif
       elseif ret == 2
+        Util.HideMsg(msg_id)
+        self.Disable()
+        self.Delete()
+        StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+      elseif ret == 3
         Util.DislikeMsg(msg_id)
         self.Disable()
         self.Delete()

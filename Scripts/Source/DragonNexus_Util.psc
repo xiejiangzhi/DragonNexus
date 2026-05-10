@@ -20,7 +20,9 @@ bool Property DisableMessageMisc auto
 string ConfFile = "../DragonNexus.json"
 string UserConfFile = "../DragonNexus.User.json"
 string DefaultConfFile = "../DragonNexus.json"
-string GUserData = "../DragonNexusUserData.json"
+string GUserDataFile = "../DragonNexusUserData.json"
+string BlockedMsgsFile = "../DragonNexusBlockedMsgs.json"
+string HiddenMsgsFile = "../DragonNexusHiddenMsgs.json"
 
 Actor Player = None
 String PlayerName = "None"
@@ -37,6 +39,7 @@ int SigninHandle
 int UserInfoHandle
 int LastUserLikeCount
 bool DisplayMessageInPopup = false
+bool AutoHideAfterActivate = false
 
 float LastResetActivatorAt = 0. ; Deprecated
 float LastClearBlockedMsgAt = 0. ; Deprecated
@@ -87,8 +90,8 @@ function OnHitPlayer()
   if HealthRestored
     if hp <= DeathMsgHealth && CanSendMsg(false)
       HealthRestored = false
-      int dcount = JsonUtil.AdjustIntValue(GUserData, "DeathCount", 1)
-      JsonUtil.Save(GUserData)
+      int dcount = JsonUtil.AdjustIntValue(GUserDataFile, "DeathCount", 1)
+      JsonUtil.Save(GUserDataFile)
       SendDeathMsg(dcount)
     endif
   elseif hp >= 80.
@@ -141,6 +144,7 @@ function PlayerEnterGame()
   NotifyLatestMsgInterval = GetConfFloat("NotifyLatestMsgInterval", 30.)
 
   DisplayMessageInPopup = GetConfBool("DisplayMessageInPopup", false)
+  AutoHideAfterActivate = GetConfBool("AutoHideAfterActivate", false)
 
   PlayerName = GetConfString("PlayerName", "")
   if PlayerName == ""
@@ -202,6 +206,10 @@ function ActivateMsg(int id)
     StorageUtil.IntListRemoveAt(self as Form, "act_msgs", 0)
     StorageUtil.FloatListRemoveAt(self as Form, "act_msgs_time", 0)
   endif
+
+  if AutoHideAfterActivate
+    HideMsg(id)
+  endif
 endfunction
 
 function ShowMsg(string sender, string msg)
@@ -210,6 +218,10 @@ function ShowMsg(string sender, string msg)
   else
     Debug.Notification(sender + ": " + msg)
   endif
+endfunction
+
+function HideMsg(int id)
+  JsonUtil.SetIntValue(HiddenMsgsFile, id as string, 1)
 endfunction
 
 bool function IsActivatedMsg(int id)
@@ -236,17 +248,13 @@ bool function IsLikedMsg(int id)
 endfunction
 
 function DislikeMsg(int id)
-  int idx = JsonUtil.IntListAdd(GUserData, "blocked_msgs", id)
-  if idx >= 2048
-    JsonUtil.IntListRemoveAt(GUserData, "blocked_msgs", 0)
-  endif
-  JsonUtil.Save(GUserData)
+  JsonUtil.SetIntValue(BlockedMsgsFile, id as string, 1)
   string url = MsgHost + "/msg/dislike?msg_id=" + id + "&token=" + PlayerToken
   HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
 bool function CanPlaceMsg(int id)
-  return !JsonUtil.IntListHas(GUserData, "blocked_msgs", id) && !StorageUtil.HasIntValue(self as Form, "msg_" + id)
+  return !JsonUtil.HasIntValue(HiddenMsgsFile, id as string) && !JsonUtil.HasIntValue(BlockedMsgsFile, id as string) && !StorageUtil.HasIntValue(self as Form, "msg_" + id)
 endfunction
 
 DragonNexus_LoadThread function TakeThread()
@@ -380,7 +388,7 @@ endfunction
 function SendDeathMsg(int death_count = 0)
   if DeathMsg != ""
     if death_count <= 0
-      death_count = JsonUtil.GetIntValue(GUserData, "DeathCount", 1)
+      death_count = JsonUtil.GetIntValue(GUserDataFile, "DeathCount", 1)
     endif
     string text = ReplaceStringIntValue(DeathMsg, "<DeathCount>", death_count)
     SendMsg(text, "death", "", 0)

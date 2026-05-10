@@ -21,6 +21,8 @@
   // Use Message Box or Notification to display message
   "DisplayMessageInPopup": false,
 
+  "AutoHideAfterActivate": false,
+
   // Reading does not trigger disabled effects.
   "DisableMessageMonster": false,
   "DisableMessageItem": false,
