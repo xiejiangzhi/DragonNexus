@@ -51,6 +51,12 @@ Event OnActivate(ObjectReference akActionRef)
       if ret == 0
         ; delete
         Util.DelMsg(msg_id)
+        MarkDeleted()
+        self.Disable()
+        self.Delete()
+      elseif ret == 1
+        Util.HideMsg(msg_id)
+        MarkDeleted()
         self.Disable()
         self.Delete()
       endif
@@ -72,14 +78,14 @@ Event OnActivate(ObjectReference akActionRef)
         endif
       elseif ret == 2
         Util.HideMsg(msg_id)
+        MarkDeleted()
         self.Disable()
         self.Delete()
-        StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
       elseif ret == 3
         Util.DislikeMsg(msg_id)
+        MarkDeleted()
         self.Disable()
         self.Delete()
-        StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
       endif
     endif
   elseif !activated
@@ -91,7 +97,7 @@ endEvent
 
 Event OnCellUnload()
   if msg_id > 0
-    StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+    MarkDeleted()
     Util.ResetCellTotalMsgs(area_id)
   endif
   self.Disable()
@@ -100,12 +106,16 @@ EndEvent
 
 Event OnCellDetach()
   if msg_id > 0
-    StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+    MarkDeleted()
     Util.ResetCellTotalMsgs(area_id)
   endif
   self.Disable()
   self.Delete()
 EndEvent
+
+function MarkDeleted()
+  StorageUtil.UnsetIntValue(Util as Form, "msg_" + msg_id)
+endfunction
 
 function ApplyMsgAction()
   Actor player = Game.GetPlayer()
