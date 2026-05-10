@@ -38,8 +38,10 @@ int UserInfoHandle
 int LastUserLikeCount
 bool DisplayMessageInPopup = false
 
-float LastResetActivatorAt = 0.
+float LastResetActivatorAt = 0. ; Deprecated
 float LastClearBlockedMsgAt = 0. ; Deprecated
+
+float MsgActivatorResetDays = 1. ; game time
 
 float LastSendMsgTime = -1000.
 float SendMsgCooldown = 60.
@@ -150,14 +152,7 @@ function PlayerEnterGame()
     PlayerName = ReplaceStringIntValue(PlayerName, "<RandNum>", PlayerRandNum)
   endif
 
-  float days = Utility.GetCurrentGameTime()
-  float ResetActivatorInterval = GetConfInt("ResetActivatorHour", 24) / 24.
-  if days > (LastResetActivatorAt + ResetActivatorInterval)
-    StorageUtil.ClearObjIntValuePrefix(self as Form, "act_msg_")
-    LastResetActivatorAt = days
-    Log("Reset activator")
-  endif
-
+  StorageUtil.ClearObjIntValuePrefix(self as Form, "act_msg_")
   StorageUtil.ClearObjIntValuePrefix(self as Form, "blocked_msg_")
 
   DisableMessageMonster = GetConfBool("DisableMessageMonster", false)
@@ -193,8 +188,20 @@ function LoadCellsMsgs(Cell[] tcells)
   endif
 endfunction
 
+; mark msg id is activated
 function ActivateMsg(int id)
-  StorageUtil.SetIntValue(self as Form, "act_msg_" + id, 1)
+  int idx = StorageUtil.IntListFind(self as Form, "act_msgs", id)
+  if idx
+    StorageUtil.IntListRemoveAt(self as Form, "act_msgs", idx)
+    StorageUtil.FloatListRemoveAt(self as Form, "act_msgs_time", idx)
+  endif
+
+  idx = StorageUtil.IntListAdd(self as Form, "act_msgs", id)
+  StorageUtil.FloatListAdd(self as Form, "act_msgs_time", Utility.GetCurrentGameTime())
+  if idx >= 1024
+    StorageUtil.IntListRemoveAt(self as Form, "act_msgs", 0)
+    StorageUtil.FloatListRemoveAt(self as Form, "act_msgs_time", 0)
+  endif
 endfunction
 
 function ShowMsg(string sender, string msg)
@@ -206,23 +213,40 @@ function ShowMsg(string sender, string msg)
 endfunction
 
 bool function IsActivatedMsg(int id)
-  return StorageUtil.HasIntValue(self as Form, "act_msg_" + id)
+  int idx = StorageUtil.IntListFind(self as Form, "act_msgs", id)
+  if idx
+    float act_time = StorageUtil.FloatListGet(self as Form, "act_msgs_time", idx)
+    return (Utility.GetCurrentGameTime() - act_time) < MsgActivatorResetDays
+  else
+    return false
+  endif
 endfunction
 
 function LikeMsg(int id)
+  int idx = StorageUtil.IntListAdd(self as Form, "liked_msgs", id)
+  if idx >= 2048
+    StorageUtil.IntListRemoveAt(self as Form, "liked_msgs", 0)
+  endif
   string url = MsgHost + "/msg/like?msg_id=" + id + "&token=" + PlayerToken
   HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
 endfunction
 
+bool function IsLikedMsg(int id)
+  return StorageUtil.IntListHas(self as Form, "liked_msgs", id)
+endfunction
+
 function DislikeMsg(int id)
-  JsonUtil.SetIntValue(GUserData, "blocked_msg_" + id, 1)
+  int idx = JsonUtil.IntListAdd(GUserData, "blocked_msgs", id)
+  if idx >= 2048
+    JsonUtil.IntListRemoveAt(GUserData, "blocked_msgs", 0)
+  endif
+  JsonUtil.Save(GUserData)
   string url = MsgHost + "/msg/dislike?msg_id=" + id + "&token=" + PlayerToken
   HTTPUtils.Request_POST(self, url, 3000, "", MsgHeaderKeys, MsgHeaderVals)
-  JsonUtil.Save(GUserData)
 endfunction
 
 bool function CanPlaceMsg(int id)
-  return !JsonUtil.HasIntValue(GUserData, "blocked_msg_" + id) && !StorageUtil.HasIntValue(self as Form, "msg_" + id)
+  return !JsonUtil.IntListHas(GUserData, "blocked_msgs", id) && !StorageUtil.HasIntValue(self as Form, "msg_" + id)
 endfunction
 
 DragonNexus_LoadThread function TakeThread()

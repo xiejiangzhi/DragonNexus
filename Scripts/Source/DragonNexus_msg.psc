@@ -24,6 +24,7 @@ function SetMsgData(int _id, string _sender, string _msg, string _msg_type, stri
   msg_type = _msg_type
   msg_val = _msg_val
   sender = _sender
+  liked = Util.IsLikedMsg(msg_id)
   activated = Util.IsActivatedMsg(msg_id)
   area_id = _area_id
   like_level = _like_level
@@ -44,10 +45,6 @@ Event OnActivate(ObjectReference akActionRef)
 
   Util.ShowMsg(sender, msg)
 
-  if liked && activated
-    return
-  endif
-
   if player.IsSneaking()
     if MyMsgMenu && Util.CanDelMsg(msg_id)
       int ret = MyMsgMenu.Show()
@@ -66,11 +63,13 @@ Event OnActivate(ObjectReference akActionRef)
           Util.ActivateMsg(msg_id)
         endif
       elseif ret == 1
-        Util.LikeMsg(msg_id)
-        Util.TakeGold(10)
-        liked = true
-        like_level += 1
-        self.SetDisplayName("From: " + sender + "(" + like_level + ")", true)
+        if !liked
+          Util.LikeMsg(msg_id)
+          Util.TakeGold(10)
+          liked = true
+          like_level += 1
+          self.SetDisplayName("From: " + sender + "(" + like_level + ")", true)
+        endif
       elseif ret == 2
         Util.DislikeMsg(msg_id)
         self.Disable()
